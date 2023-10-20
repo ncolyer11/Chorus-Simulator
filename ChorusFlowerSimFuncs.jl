@@ -92,11 +92,10 @@ end
 
 # Returns the age of the block given an Id, returns an error code of -1 if not a chorus flower
 function getAge(blockId::Int)
-    if 0 ≤ blockId ≤ MAX_AGE
-        return blockId
+    if blockId in CHORUS_FLOWERS
+        return blockId # As the block ID of chorus flowers in this sim is also conveniantly its age
     else
-        # println("Invalid BlockID")
-        print("Invalid BlockID ")
+        println("Invalid BlockID")
         return -1
     end
 end
@@ -113,7 +112,7 @@ function getBlockId(World::Array{Int, 3}, pos::BlockPos)
     return World[pos.x + 1, pos.y + 1, pos.z + 1] # + 1 as Julia is 1-indexed 🤨
 end
 
-# Returns a 2 randomly chosen coords for each subchunk a chorus sits in (min 2)
+# Returns 2 randomly chosen coords for each subchunk a chorus sits in (min 2)
 function randSubChunkPos()
     return (
         BlockPos(rand(0:15), rand(0:15), rand(0:15)),
@@ -121,33 +120,30 @@ function randSubChunkPos()
     )
 end
 
-# Checks to see if random sub-chunk coords are within a chorus plants bounding box
+# Checks to see if random sub-chunk coords are within a chorus plant's bounding box
 function validPos(pos::BlockPos, maxHeight::Int)
-    if pos.x + 1 > 11 || pos.y + 1 > min(maxHeight, WORLD_HEIGHT) || pos.z + 1 > 11
-        return false
-    else
-        return true
-    end
+    return !(pos.x + 1 > 11 || pos.y + 1 > min(maxHeight, 23) || pos.z + 1 > 11)
 end
 
 # Checks to see if the chorus can grow vertically
 function checkVerticalGrowth(World::Array{Int, 3}, pos::BlockPos)
     canGrowAbove::Bool = false
     endstn2To5Down::Bool = false
-    belowBlock = blockDown(pos)
-    if getBlockId(World, belowBlock) == ENDSTONE
+    belowBlockPos = blockDown(pos)
+    if getBlockId(World, belowBlockPos) == ENDSTONE
         canGrowAbove = true
-    elseif getBlockId(World, belowBlock) == CHORUS_PLANT
+    elseif getBlockId(World, belowBlockPos) == CHORUS_PLANT
         # Keep track of how many chorus plants are below the given chorus flower
         chorusPlantsBelow = 1
         for i in 1:4
             # Looks at 5 (first below is checked in above if else) blocks below to see if any are chorus plants
-            belowBlockType = getBlockId(World, blockDown(belowBlock + chorusPlantsBelow))
+            belowBlockType = getBlockId(World, blockDown(belowBlockPos + chorusPlantsBelow))
             if belowBlockType == CHORUS_PLANT
                 chorusPlantsBelow += 1
                 continue
             end
-            # If endstone is found not first block below chorus flower, but any of the 4 beneath it, set endstn2To5Down to true
+            # If endstone is found not on the first block below the chorus flower,
+            # but on any of the 4 blocks beneath it, set endstn2To5Down to true
             if belowBlockType == END_STONE
                 endstn2To5Down = true
             end
@@ -155,10 +151,10 @@ function checkVerticalGrowth(World::Array{Int, 3}, pos::BlockPos)
         end
         # If no chorus plants were found below then chorusPlantsBelow is still 1 and set canGrow to true
         # If there were 0-4 chorus plants beneath the flower, then there's a (5-j)/5 or (4-j)/4 chance of setting canGrow to true
-        if chorusPlantsBelow < 2 || chorusPlantsBelow ≤ rand(0:(endstn2To5Down ? 5 : 4))
+        if chorusPlantsBelow < 2 || chorusPlantsBelow ≤ rand(0:(endstn2To5Down ? 4 : 3)) # bounds are inclusive, unlike java random.nextInt
             canGrowAbove = true
         end
-    # If there's air below chorus flower set canGrow to true
+    # If there's air below the chorus flower set canGrow to true
     elseif getBlockId(World, belowBlock) == AIR
         canGrowAbove = true
     end
