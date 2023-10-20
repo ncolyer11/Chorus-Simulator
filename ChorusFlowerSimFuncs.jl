@@ -115,7 +115,7 @@ end
 
 # Checks to see if random sub-chunk coords are within a chorus plant's bounding box
 function validPos(pos::BlockPos, maxHeight::Int)
-    return !(pos.x + 1 > 11 || pos.y + 1 > min(maxHeight, 23) || pos.z + 1 > 11)
+    return !(pos.x + 1 > 11 || pos.y + 1 > min(maxHeight, WORLD_HEIGHT) || pos.z + 1 > 11)
 end
 
 # Checks to see if the chorus can grow vertically
