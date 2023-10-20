@@ -100,13 +100,6 @@ function getAge(blockId::Int)
     end
 end
 
-#=
-Information on block id:
-- 0-5: Chorus flower age 0-5
-- 10:  Air
-- 11:  Endstone
-- 12:  Chorus plant
-=#
 # Retrieves the block type at 'BlockPos'
 function getBlockId(World::Array{Int, 3}, pos::BlockPos)
     return World[pos.x + 1, pos.y + 1, pos.z + 1] # + 1 as Julia is 1-indexed 🤨
@@ -130,7 +123,7 @@ function checkVerticalGrowth(World::Array{Int, 3}, pos::BlockPos)
     canGrowAbove::Bool = false
     endstn2To5Down::Bool = false
     belowBlockPos = blockDown(pos)
-    if getBlockId(World, belowBlockPos) == ENDSTONE
+    if getBlockId(World, belowBlockPos) == END_STONE
         canGrowAbove = true
     elseif getBlockId(World, belowBlockPos) == CHORUS_PLANT
         # Keep track of how many chorus plants are below the given chorus flower

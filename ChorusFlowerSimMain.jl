@@ -20,11 +20,13 @@ include("ChorusFlowerSimFuncs.jl")
 println("Welcome to Chorus Simulator")
 print("Please enter how long you want to run your next simulation for (m): ")
 simTime = parse(Float64, readline())
+
 # Start the simulation
 simTime == 1 ? minuteWord = "minute" : minuteWord = "minutes"
 println("Running a simulation for $simTime $minuteWord... hold tight!") 
 startTime = time()
 start(simTime)
+
 # Display runtime and finish
 elapsedTime = (time() - startTime) / 60
 elapsedTime == 1 ? minuteWord = "minute" : minuteWord = "minutes"
