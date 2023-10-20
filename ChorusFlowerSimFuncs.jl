@@ -28,8 +28,8 @@ function start(simMaxRunTime::Float64)
     # Initialise world state to all air
     World = fill(AIR, (11, WORLD_HEIGHT, 11))
     # Set starting conditions to be a centred endstone block with a chorus flower on top
-    World[6, 1, 6] = CHORUS_FLOWER_AGE_0
-    World[6, 2, 6] = END_STONE
+    World[6, 1, 6] = END_STONE
+    World[6, 2, 6] = CHORUS_FLOWER_AGE_0
 
     startTime = time()
     while true
