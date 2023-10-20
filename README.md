@@ -1,5 +1,6 @@
 # Chorus-Simulator
 Written by ncolyer
+
 A program that simulates and charts chorus flower growth
 It records:
 - Amount and position of chorus flowers and plants in minute intervals
