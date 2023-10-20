@@ -16,6 +16,7 @@ const CHORUS_FLOWER_AGE_2::Int = 2
 const CHORUS_FLOWER_AGE_3::Int = 3
 const CHORUS_FLOWER_AGE_4::Int = 4
 const CHORUS_FLOWER_AGE_5::Int = 5
+const CHORUS_FLOWERS = collect(0:5)
 const AIR::Int = 10 
 const END_STONE::Int = 11 
 const CHORUS_PLANT::Int = 12 
@@ -53,7 +54,7 @@ end
 # Simulates the effects of a single random tick on a chorus flower
 function randomTick(World::Array{Int, 3}, pos::BlockPos)
     # If block isn't a chorus flower then exit
-    if getBlockId(World, pos) > 5
+    if !(getBlockId(World, pos) in CHORUS_FLOWERS)
         return
     end
     aboveBlock = blockUp(pos)
@@ -67,7 +68,7 @@ function randomTick(World::Array{Int, 3}, pos::BlockPos)
     canGrowAbove::Bool, endstn2To5Down::Bool = checkVerticalGrowth(World, pos)
 
     # If valid growth conditions and is sufficiently surrounded by air, grow vertically
-    if canGrowAbove && isSurroundedByAir(aboveBlock) && getBlockId(blockUp(pos, 2)) == AIR
+    if canGrowAbove && isSurroundedByAir(aboveBlock) && getBlockId(World, blockUp(pos, 2)) == AIR
         tryVerticalGrowth()
     # Otherwise if age is less than 4 try grow to horizontally in 1-4 horizontal directions
     elseif age < 4
