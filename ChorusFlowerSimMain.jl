@@ -14,7 +14,7 @@ Records data using normal arithmetic and variables (may need to use atomics if m
 =#
 
 using Dates
-include("ChorusFlowerSimFuncs.jl")
+include("ChorusFlowerSimFuncs.jl") # hi mom
 
 # Welcome the user 🥰
 println("Welcome to Chorus Simulator")

@@ -70,7 +70,7 @@ function start(simMaxRunTime::Float64)
         id = World[i,j,k]
         if id ≠ AIR
             # println("Block $id found at [$i, $j, $(k)]")
-            println("/setblock ~$i ~$j ~$k minecraft:$(blocksDict[id])")
+            println("setblock ~$i ~$j ~$k minecraft:$(blocksDict[id])")
         end
     end
 end
