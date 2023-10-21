@@ -127,7 +127,7 @@ function setBlockId(World::Array{Int, 3}, pos::BlockPos, blockId::Int)
 end
 
 # Returns 2 randomly chosen coords for each subchunk a chorus sits in (min 2)
-function randSubChunkPos()
+function randSubChunkPos() # hi mom
     return (
         BlockPos(rand(0:15), rand(0:15), rand(0:15)),
         BlockPos(rand(0:15), rand(15:31), rand(0:15))
