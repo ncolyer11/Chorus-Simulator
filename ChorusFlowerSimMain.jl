@@ -10,7 +10,7 @@ Works by generating a small section of the world using a 3d array that just stor
 block is where
 It then simulates random ticks using a random call for each x, y, and z value
 Replicates chorus flower growth code from deobfuscated java game code
-Records data using normal arithmetic and variables (may need to use atomics if multi- threading)
+Records data using normal arithmetic and variables (may need to use atomics if multi-threading)
 =#
 
 using Dates

@@ -6,6 +6,7 @@ mutable struct BlockPos
     y::Int
     z::Int
 end
+
 # Dictionary to convert block ID's to block names
 blocksDict = Dict(
     0 => "chorus_flower[age=0]",
