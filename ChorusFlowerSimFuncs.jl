@@ -18,6 +18,7 @@ blocksDict = Dict(
     11 => "end_stone",
     12 => "chorus_plant[up=true,down=true]"
 )
+
 # Max chorus flower age is 5 (dead)
 const MAX_AGE::Int = 5 
 # Block ID's
@@ -198,7 +199,6 @@ function tryVerticalGrowth(World::Array{Int, 3}, pos::BlockPos)
     growChorus(World, blockUp(pos), age)
 end
 
-
 # Attempt to grow a chorus flower vertically after being randomticked
 function tryHorizontalGrowth(World::Array{Int, 3}, pos::BlockPos, endstn2To5Down::Bool)
     # Note: this can be ZERO, meaning the chorus flower can just die on the spot if there's more than 1 chorus plant below it e.g.
@@ -219,13 +219,12 @@ function tryHorizontalGrowth(World::Array{Int, 3}, pos::BlockPos, endstn2To5Down
         # To grow, adjacent block, all sides horizontal to it (exc chorus flower side) and the block below that has to be air
         if (getBlockId(World, adjBlockPos) == AIR &&
             getBlockId(World, blockDown(adjBlockPos)) == AIR ||
-            isSurroundedByAir(World, adjBlockPos, direction))
+            isSurroundedByAir(World, adjBlockPos, 5 - direction)) # Maps direction to its opposite using: x ↦ 5 - x
             println("grew chorus adjacent at pos $adjBlockPos on $l")
             growChorus(World, adjBlockPos, age + 1) # Only if the chorus flower moves to the side, does it's age increase
             grewAdjacent = true
         end
     end
-
     if grewAdjacent
         setBlockId(World, pos, CHORUS_PLANT)
     else
@@ -243,15 +242,16 @@ function dieChorus(World::Array{Int, 3}, pos::BlockPos)
     setBlockId(World, pos, CHORUS_FLOWER_AGE_5)
 end
 
+# Returns a blockpos of an offset block of a given direction
 function offsetBlock(pos::BlockPos, direction::Int)
     if direction == 1
         return BlockPos(pos.x + 1, pos.y, pos.z)
     elseif direction == 2
-        return BlockPos(pos.x - 1, pos.y, pos.z)
-    elseif direction == 3
         return BlockPos(pos.x, pos.y, pos.z + 1)
-    elseif direction == 4
+    elseif direction == 3
         return BlockPos(pos.x, pos.y, pos.z - 1)
+    elseif direction == 4
+        return BlockPos(pos.x - 1, pos.y, pos.z)
     else
         println("Error: Invalid Direction")
         return -1
@@ -264,9 +264,8 @@ function isSurroundedByAir(World::Array{Int, 3}, pos::BlockPos, exceptDirection:
     for direction in 1:4
         if direction == exceptDirection || getBlockId(World, offsetBlock(pos, direction)) == AIR
             continue
-        else
-            return false
         end
+        return false
     end
     return true
 end
