@@ -52,20 +52,22 @@ function start(simMaxRunTime::Float64)
             println("Maximum runtime reached. Exiting the simulation.")
             break
         end
+
         # Simulate 3 randomticks per subchunk
         for i in 1:3
             subChunkLowerPos, subChunkUpperPos = randSubChunkPos()
             # println("Ticked Coords: $subChunkLowerPos $subChunkUpperPos")
-            if validPos(subChunkLowerPos, 15) == true
+            if validPos(subChunkLowerPos, 15)
                 randomTick(World, subChunkLowerPos)
             end
-            if validPos(subChunkUpperPos, 31) == true
+            if validPos(subChunkUpperPos, 31)
                 randomTick(World, subChunkUpperPos)
             end
         end
         randomTicks += 6
         # sleep(0.005)
     end
+
     # Output runtime and world information
     println("Simulated $randomTicks randomticks ($(randomTicks/(6*20*60)) hours)")
     for (i,k,j) in Iterators.product(axes(World, 1), axes(World, 3), axes(World, 2))
@@ -79,7 +81,7 @@ end
 
 # Simulates the effects of a single random tick on a chorus flower
 function randomTick(World::Array{Int, 3}, pos::BlockPos)
-    # If block isn't a chorus flower then exit
+    # If the block isn't a chorus flower then exit
     id::Int = getBlockId(World, pos)
     # println("Current id: $id")
     if !(id in CHORUS_FLOWERS)
@@ -89,7 +91,7 @@ function randomTick(World::Array{Int, 3}, pos::BlockPos)
 
     age = getAge(id)
     aboveBlock = blockUp(pos)
-    # If above block isn't within height limit or isn't air or age is ≥ 5 exit
+    # If the above block isn't within height limit or isn't air or age is ≥ 5 exit
     if aboveBlock.y + 1 > WORLD_HEIGHT || getBlockId(World, aboveBlock) ≠ AIR || age ≥ MAX_AGE
         return
     end
@@ -200,7 +202,7 @@ function tryVerticalGrowth(World::Array{Int, 3}, pos::BlockPos)
     growChorus(World, blockUp(pos), age)
 end
 
-# Attempt to grow a chorus flower vertically after being randomticked
+# Attempt to grow a chorus flower horizontally after being randomticked
 function tryHorizontalGrowth(World::Array{Int, 3}, pos::BlockPos, endstn2To5Down::Bool)
     # Note: this can be ZERO, meaning the chorus flower can just die on the spot if there's more than 1 chorus plant below it e.g.
     directionPicks::Int = rand(0:3)
@@ -233,12 +235,12 @@ function tryHorizontalGrowth(World::Array{Int, 3}, pos::BlockPos, endstn2To5Down
     end
 end
 
-# Grows a chorus flower at 'blockPos' to 'age'
+# Grows a chorus flower at 'blockPos' to age 'age'
 function growChorus(World::Array{Int, 3}, pos::BlockPos, age::Int)
     setBlockId(World, pos, CHORUS_FLOWERS[age + 1])
 end
 
-# Grows a chorus flower at 'blockPos' to 'age'
+# Grows a chorus flower at 'blockPos' to age 5 (dead)
 function dieChorus(World::Array{Int, 3}, pos::BlockPos)
     setBlockId(World, pos, CHORUS_FLOWER_AGE_5)
 end
