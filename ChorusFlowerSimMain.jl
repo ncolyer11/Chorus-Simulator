@@ -30,3 +30,4 @@ start(simTime)
 # Display runtime and finish
 elapsedTime = (time() - startTime) / 60
 elapsedTime == 1 ? minuteWord = "minute" : minuteWord = "minutes"
+println("Simulation finished after $elapsedTime $minuteWord")

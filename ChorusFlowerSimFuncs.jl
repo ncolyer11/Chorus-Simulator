@@ -6,11 +6,18 @@ mutable struct BlockPos
     y::Int
     z::Int
 end
-
-# Directions dictionary
-Directions = Dict("+x" => 1, "-x" => 2, "+z" => 3, "-z" => 4)
-
-
+# Dictionary to convert block ID's to block names
+blocksDict = Dict(
+    0 => "chorus_flower[age=0]",
+    1 => "chorus_flower[age=1]",
+    2 => "chorus_flower[age=2]",
+    3 => "chorus_flower[age=3]",
+    4 => "chorus_flower[age=4]",
+    5 => "chorus_flower[age=5]",
+    10 => "air",
+    11 => "end_stone",
+    12 => "chorus_plant[up=true,down=true]"
+)
 # Max chorus flower age is 5 (dead)
 const MAX_AGE::Int = 5 
 # Block ID's
@@ -27,7 +34,7 @@ const CHORUS_PLANT::Int = 12
 # Simulation world height
 const WORLD_HEIGHT = 23
 
-# Starts the simulation and runs it for 'simTime' minutes
+# Starts the simulation and runs it for 'simMaxRunTime' minutes
 function start(simMaxRunTime::Float64)
     # Initialise world state to all air
     World = fill(AIR, (11, WORLD_HEIGHT, 11))
@@ -46,7 +53,7 @@ function start(simMaxRunTime::Float64)
         # Simulate 3 randomticks per subchunk
         for i in 1:3
             subChunkLowerPos, subChunkUpperPos = randSubChunkPos()
-            println("Ticked Coords: $subChunkLowerPos $subChunkUpperPos")
+            # println("Ticked Coords: $subChunkLowerPos $subChunkUpperPos")
             if validPos(subChunkLowerPos, 15) == true
                 randomTick(World, subChunkLowerPos)
             end
@@ -55,12 +62,15 @@ function start(simMaxRunTime::Float64)
             end
         end
         randomTicks += 6
-        sleep(0.002)
+        # sleep(0.005)
     end
+    # Output runtime and world information
     println("Simulated $randomTicks randomticks ($(randomTicks/(6*20*60)) hours)")
-    for block in World
-        if block in CHORUS_FLOWERS || block == END_STONE
-            println("Block $block found!")
+    for (i,k,j) in Iterators.product(axes(World, 1), axes(World, 3), axes(World, 2))
+        id = World[i,j,k]
+        if id ≠ AIR
+            # println("Block $id found at [$i, $j, $(k)]")
+            println("/setblock ~$i ~$j ~$k minecraft:$(blocksDict[id])")
         end
     end
 end
@@ -68,13 +78,15 @@ end
 # Simulates the effects of a single random tick on a chorus flower
 function randomTick(World::Array{Int, 3}, pos::BlockPos)
     # If block isn't a chorus flower then exit
-    if !(getBlockId(World, pos) in CHORUS_FLOWERS)
+    id::Int = getBlockId(World, pos)
+    # println("Current id: $id")
+    if !(id in CHORUS_FLOWERS)
         return
     end
-    id::Int = getBlockId(World, pos)
-    println("Chorus Flower of age $id found at position $pos")
-    aboveBlock = blockUp(pos)
+    # println("Chorus Flower of age $id found at position $pos")
+
     age = getAge(id)
+    aboveBlock = blockUp(pos)
     # If above block isn't within height limit or isn't air or age is ≥ 5 exit
     if aboveBlock.y + 1 > WORLD_HEIGHT || getBlockId(World, aboveBlock) ≠ AIR || age ≥ MAX_AGE
         return
@@ -85,7 +97,7 @@ function randomTick(World::Array{Int, 3}, pos::BlockPos)
 
     # If valid growth conditions and is sufficiently surrounded by air, grow vertically
     if canGrowAbove && isSurroundedByAir(World, aboveBlock, 0) && getBlockId(World, blockUp(pos, 2)) == AIR
-        tryVerticalGrowth(World, aboveBlock)
+        tryVerticalGrowth(World, pos)
     # Otherwise if age is less than 4 try grow to horizontally in 1-4 horizontal directions
     elseif age < 4
         tryHorizontalGrowth(World, pos, endstn2To5Down)
@@ -96,22 +108,21 @@ end
 
 # Returns BlockPos value of above block
 function blockUp(blockPos::BlockPos, amount::Int=1)
-    upBlockPos = BlockPos(blockPos.x, blockPos.y + amount, blockPos.z)
-    return upBlockPos
+    return BlockPos(blockPos.x, blockPos.y + amount, blockPos.z)
 end
 
 # Returns BlockPos value of below block
 function blockDown(blockPos::BlockPos, amount::Int=1)
-    downBlockPos = BlockPos(blockPos.x, blockPos.y - amount, blockPos.z)
-    return downBlockPos
+    return BlockPos(blockPos.x, blockPos.y - amount, blockPos.z)
 end
 
 # Returns the age of the block given an Id, returns an error code of -1 if not a chorus flower
 function getAge(blockId::Int)
     if blockId in CHORUS_FLOWERS
+        # println("Valid BlockID: $blockId")
         return blockId # As the block ID of chorus flowers in this sim is also conveniantly its age
     else
-        println("Invalid BlockID")
+        println("Invalid BlockID: $blockId")
         return -1
     end
 end
@@ -127,7 +138,7 @@ function setBlockId(World::Array{Int, 3}, pos::BlockPos, blockId::Int)
 end
 
 # Returns 2 randomly chosen coords for each subchunk a chorus sits in (min 2)
-function randSubChunkPos() # hi mom
+function randSubChunkPos()
     return (
         BlockPos(rand(0:15), rand(0:15), rand(0:15)),
         BlockPos(rand(0:15), rand(15:31), rand(0:15))
@@ -151,7 +162,7 @@ function checkVerticalGrowth(World::Array{Int, 3}, pos::BlockPos)
         chorusPlantsBelow = 1
         for i in 1:4
             # Looks at 5 (first below is checked in above if else) blocks below to see if any are chorus plants
-            belowBlockId = getBlockId(World, blockDown(belowBlockPos + chorusPlantsBelow))
+            belowBlockId = getBlockId(World, blockDown(belowBlockPos, chorusPlantsBelow))
             if belowBlockId == CHORUS_PLANT
                 chorusPlantsBelow += 1
                 continue
@@ -178,10 +189,13 @@ end
 
 # Attempt to grow a chorus flower vertically after being randomticked
 function tryVerticalGrowth(World::Array{Int, 3}, pos::BlockPos)
+    # Save age of current chorus flower
+    age::Int = getAge(getBlockId(World, pos))
     # Replace chorus flower with a plant
-    setBlockId(World, pos, CHORUS_PLANT);
+    setBlockId(World, pos, CHORUS_PLANT)
     # Grow function to grow plants until it gets to another flower
-    growChrous(World, pos, getAge(getBlockId(World, pos)) + 1);
+    # println("grew chorus vertically")
+    growChorus(World, blockUp(pos), age)
 end
 
 
@@ -196,31 +210,31 @@ function tryHorizontalGrowth(World::Array{Int, 3}, pos::BlockPos, endstn2To5Down
     grewAdjacent::Bool = false
     # Runs 'directionPicks' amount of times to try and grow at different directions horizontally adjacent to the chorus flower
     # Means it could branch off into up to min(directionPicks, 4) directions
-    for l in directionPicks
+    for l in 1:directionPicks
         # Random is the seed for the given random tick 
         # Essentially this just gives a 1/4 chance for either horizontal direction to be chosen
-        direction::Int = rand(1:4);
-        adjBlockPos = offsetBlock(pos, direction);
+        direction::Int = rand(1:4)
+        adjBlockPos = offsetBlock(pos, direction)
         age::Int = getAge(getBlockId(World, pos))
         # To grow, adjacent block, all sides horizontal to it (exc chorus flower side) and the block below that has to be air
         if (getBlockId(World, adjBlockPos) == AIR &&
-            getBlockId(World, blockDown(adjBlockPos)) == AIR && 
+            getBlockId(World, blockDown(adjBlockPos)) == AIR ||
             isSurroundedByAir(World, adjBlockPos, direction))
-
-            growChrous(World, adjBlockPos, age + 1); # Only if the chorus flower moves to the side, does it's age increase
-            grewAdjacent = true;
+            println("grew chorus adjacent at pos $adjBlockPos on $l")
+            growChorus(World, adjBlockPos, age + 1) # Only if the chorus flower moves to the side, does it's age increase
+            grewAdjacent = true
         end
     end
 
     if grewAdjacent
-        setBlockId(World, pos, age);
+        setBlockId(World, pos, CHORUS_PLANT)
     else
         dieChorus(World, pos)
     end
 end
 
 # Grows a chorus flower at 'blockPos' to 'age'
-function growChrous(World::Array{Int, 3}, pos::BlockPos, age::Int)
+function growChorus(World::Array{Int, 3}, pos::BlockPos, age::Int)
     setBlockId(World, pos, CHORUS_FLOWERS[age + 1])
 end
 
