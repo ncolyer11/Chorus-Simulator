@@ -9,19 +9,6 @@ mutable struct BlockPos
     z::Int
 end
 
-# Dictionary to convert block ID's to block names
-blocksDict = Dict(
-    0 => "chorus_flower[age=0]",
-    1 => "chorus_flower[age=1]",
-    2 => "chorus_flower[age=2]",
-    3 => "chorus_flower[age=3]",
-    4 => "chorus_flower[age=4]",
-    5 => "chorus_flower[age=5]",
-    10 => "air",
-    11 => "end_stone",
-    12 => "chorus_plant[up=true,down=true]"
-)
-
 # Max chorus flower age is 5 (dead)
 const MAX_AGE::Int = 5 
 # Block ID's
