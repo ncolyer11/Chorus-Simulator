@@ -1,4 +1,6 @@
 using Dates
+using XLSX
+using Plots
 
 # Custom data type for recording block position
 mutable struct BlockPos
@@ -23,60 +25,87 @@ blocksDict = Dict(
 # Max chorus flower age is 5 (dead)
 const MAX_AGE::Int = 5 
 # Block ID's
-const CHORUS_FLOWER_AGE_0::Int = 0 
+const CHORUS_FLOWER_AGE_0 = 0 
 const CHORUS_FLOWER_AGE_1::Int = 1
 const CHORUS_FLOWER_AGE_2::Int = 2
 const CHORUS_FLOWER_AGE_3::Int = 3
 const CHORUS_FLOWER_AGE_4::Int = 4
 const CHORUS_FLOWER_AGE_5::Int = 5
-const CHORUS_FLOWERS = collect(0:5)
+const CHORUS_FLOWERS::Array{Int, 1} = collect(0:5)
 const AIR::Int = 10 
 const END_STONE::Int = 11 
 const CHORUS_PLANT::Int = 12 
 # Simulation world height
-const WORLD_HEIGHT = 23
+const WORLD_HEIGHT::Int = 23
+const MAX_SIM_CYCLE_MINUTES::Int = 30
+
 
 # Starts the simulation and runs it for 'simMaxRunTime' minutes
 function start(simMaxRunTime::Float64)
-    # Initialise world state to all air
-    World = fill(AIR, (11, WORLD_HEIGHT, 11))
-    # Set starting conditions to be a centred endstone block with a chorus flower on top
-    World[6, 1, 6] = END_STONE
-    World[6, 2, 6] = CHORUS_FLOWER_AGE_0
-
     randomTicks::Int64 = 0
     startTime = time()
+    elapsedTime = time() - startTime
+    chorusPlantHeatmap = fill(Float64(0), (11, WORLD_HEIGHT, 11, MAX_SIM_CYCLE_MINUTES + 1))
+    chorusFlowerHeatmap = fill(Float64(0), (11, WORLD_HEIGHT, 11, MAX_SIM_CYCLE_MINUTES + 1))
+    simmedChorus = 0
     while true
         # Check if the elapsed time exceeds the maximum runtime
-        if time() - startTime > simMaxRunTime * 60
-            println("Maximum runtime reached. Exiting the simulation.")
+        elapsedTime = time() - startTime
+        if elapsedTime > simMaxRunTime * 60
             break
         end
-
-        # Simulate 3 randomticks per subchunk
-        for i in 1:3
-            subChunkLowerPos, subChunkUpperPos = randSubChunkPos()
-            # println("Ticked Coords: $subChunkLowerPos $subChunkUpperPos")
-            if validPos(subChunkLowerPos, 15)
-                randomTick(World, subChunkLowerPos)
+        
+        # Initialise world state to all air
+        World = fill(AIR, (11, WORLD_HEIGHT, 11))
+        # Set starting conditions to be a centred endstone block with a chorus flower on top
+        World[6, 1, 6] = END_STONE
+        World[6, 2, 6] = CHORUS_FLOWER_AGE_0
+        aliveFlowers = 1
+        timeInterval = 0
+        while aliveFlowers > 0 && timeInterval ≤ MAX_SIM_CYCLE_MINUTES
+            # Simulate 3 randomticks per subchunk
+            for i in 1:3
+                subChunkLowerPos, subChunkUpperPos = randSubChunkPos()
+                # println("Ticked Coords: $subChunkLowerPos $subChunkUpperPos")
+                if validPos(subChunkLowerPos, 15)
+                    randomTick(World, subChunkLowerPos)
+                end
+                if validPos(subChunkUpperPos, 31)
+                    randomTick(World, subChunkUpperPos)
+                end
             end
-            if validPos(subChunkUpperPos, 31)
-                randomTick(World, subChunkUpperPos)
+            randomTicks += 6
+            # Every in-game/simulation minute (7200 random ticks), update the heatmap and increment one time interval
+            if rem(randomTicks, 6*20*60) == 0
+                aliveFlowers = updateHeatmaps(World, chorusFlowerHeatmap, chorusPlantHeatmap, timeInterval, simmedChorus)
+                timeInterval += 1
             end
+            # sleep(0.005)
         end
-        randomTicks += 6
-        # sleep(0.005)
+        simmedChorus += 1
     end
+    
+    # Display runtime
+    elapsedTime == 1 ? minuteWord = "minute" : minuteWord = "minutes"
+    println("Maximum runtime reached after $(elapsedTime/60) $minuteWord. Exiting the simulation.")
+    sleep(0.5)
 
-    # Output runtime and world information
-    println("Simulated $randomTicks randomticks ($(randomTicks/(6*20*60)) hours)")
-    for (i,k,j) in Iterators.product(axes(World, 1), axes(World, 3), axes(World, 2))
-        id = World[i,j,k]
-        if id ≠ AIR
-            # println("Block $id found at [$i, $j, $(k)]")
-            println("setblock ~$i ~$j ~$k minecraft:$(blocksDict[id])")
-        end
-    end
+    # Output simulation some general simulation statistics
+    simmedChorus == 1 ? flowerWord = "flower" : flowerWord = "flowers"
+    println("Simulated $simmedChorus chorus $flowerWord over $randomTicks randomticks ($(randomTicks/(6*20*60)) hours)")
+
+    # Save heatmap data to an excel file
+    println("Saving heatmaps...")
+    saveHeatmap(chorusFlowerHeatmap, "Chorus Flower Heatmap")
+    saveHeatmap(chorusPlantHeatmap, "Chorus Plant Heatmap")
+    println("Heatmaps saved successfully")
+    
+    # Export heatmap data as a set of pngs
+    println("Exporting Heatmaps...")
+    exportHeatmap(chorusFlowerHeatmap, "Chorus Flower Heatmap")
+    exportHeatmap(chorusPlantHeatmap, "Chorus Plant Heatmap")
+    println("Heatmaps exported successfully")
+
 end
 
 # Simulates the effects of a single random tick on a chorus flower
@@ -223,7 +252,7 @@ function tryHorizontalGrowth(World::Array{Int, 3}, pos::BlockPos, endstn2To5Down
         if (getBlockId(World, adjBlockPos) == AIR &&
             getBlockId(World, blockDown(adjBlockPos)) == AIR ||
             isSurroundedByAir(World, adjBlockPos, 5 - direction)) # Maps direction to its opposite using: x ↦ 5 - x
-            println("grew chorus adjacent at pos $adjBlockPos on $l")
+            # println("grew chorus adjacent at pos $adjBlockPos on $l")
             growChorus(World, adjBlockPos, age + 1) # Only if the chorus flower moves to the side, does it's age increase
             grewAdjacent = true
         end
@@ -271,4 +300,82 @@ function isSurroundedByAir(World::Array{Int, 3}, pos::BlockPos, exceptDirection:
         return false
     end
     return true
+end
+
+# Updates the 4D chorus plant heatmap at the given minute interval
+function updateHeatmaps(World::Array{Int, 3}, chorusFlowerHeatmap::Array{Float64, 4}, chorusPlantHeatmap::Array{Float64, 4}, minute::Int, simmedChorus::Int)
+    # Optimisation step to track alive flowers and skip to the next chorus if the current one is already dead
+    aliveFlowers = 0
+    for (i,j,k) in Iterators.product(axes(World, 1), axes(World, 2), axes(World, 3))
+        blockId = World[i, j, k]
+        if blockId in CHORUS_FLOWERS && blockId != MAX_AGE
+            aliveFlowers += 1
+        end
+        if blockId in CHORUS_FLOWERS
+            chorusFlowerHeatmap[i, j, k, minute + 1] = (1 + chorusFlowerHeatmap[i, j, k, minute + 1]) / (simmedChorus + 1)
+        elseif blockId == CHORUS_PLANT
+            chorusPlantHeatmap[i, j, k, minute + 1] = (1 + chorusPlantHeatmap[i, j, k, minute + 1]) / (simmedChorus + 1)
+        end
+    end
+    return aliveFlowers
+end
+
+# Write heatmap data to an excel file
+function saveHeatmap(heatmap::Array{Float64, 4}, name::String)
+    try
+        # Create a new Excel file
+        XLSX.openxlsx("$(name).xlsx", mode="w") do xf
+            for minute in 0:(30)
+                # Create a new sheet for each time interval
+                !XLSX.hassheet(xf, "$minute") && XLSX.addsheet!(xf, "$minute")
+                sheet = xf[minute + 2]
+                minuteSlice = view(heatmap, :, :, :, minute + 1)
+                for (x,y,z) in Iterators.product(axes(minuteSlice, 1), axes(minuteSlice, 2), axes(minuteSlice, 3))
+                    col = x - 1 + (11 * (z - 1))
+                    row = 23 - y
+                    val = heatmap[x, y, z, minute + 1]
+                    # println("Wrote value: $val to row: $row, col: $col ($x, $y, $z)")
+                    sheet[row + 1, col + 1] = heatmap[x, y, z, minute + 1]
+                end
+            end
+        end
+    catch error
+        println("Error: $error")
+    end
+end
+
+# Export heatmaps as a set of PNG files
+function exportHeatmap(heatmapData::Array{Float64, 4}, name::String)
+    for minute in 0:30
+        # Convert the heatmap to 2D to be able to plotted
+        flattenedHeatmap = heatmapTo2D(heatmapData, minute)
+        try
+            gr()
+            png(
+                heatmap(
+                    1:size(flattenedHeatmap, 1),
+                    1:size(flattenedHeatmap, 2),
+                    flattenedHeatmap,
+                    c = cgrad([:white, :orange, :purple]),
+                    xlabel = "z slice",
+                    ylabel = "height",
+                    title = name * "minute_$minute"),
+                "heatmaps\\$name (minute $minute)") 
+        catch error
+            println("Error: $error")
+        end
+    end
+end
+
+# Flattens a slice of a 4D heatmap to be 2D so it can be plotted on a 2D heatmap
+function heatmapTo2D(heatmapData::Array{Float64, 4}, minute::Int)
+    # Extract slice of the heatmap at a certain minute interval
+    heatmapSlice = view(heatmapData, :, :, :, minute + 1)
+    flattenedHeatmap = fill(Float64(0), (WORLD_HEIGHT, size(heatmapSlice, 1)^2))
+    for (x,y,z) in Iterators.product(axes(heatmapSlice, 1), axes(heatmapSlice, 2), axes(heatmapSlice, 3))
+        col = x - 1 + (11 * (z - 1))
+        row = y - 1
+        flattenedHeatmap[row + 1, col + 1] = heatmapSlice[x, y, z]
+    end
+    return flattenedHeatmap
 end

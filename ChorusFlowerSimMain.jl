@@ -16,18 +16,30 @@ Records data using normal arithmetic and variables (may need to use atomics if m
 using Dates
 include("ChorusFlowerSimFuncs.jl")
 
+function getinput()
+    simTime = 0
+    while true
+        try
+            simTime = parse(Float64, readline())
+            break
+        catch
+            println("Invalid input, please enter a number")
+        end
+    end
+    return simTime
+end
+
 # Welcome the user 🥰
 println("Welcome to Chorus Simulator")
+sleep(0.5)
 print("Please enter how long you want to run your next simulation for (m): ")
-simTime = parse(Float64, readline())
+simTime = getinput()
 
 # Start the simulation
 simTime == 1 ? minuteWord = "minute" : minuteWord = "minutes"
 println("Running a simulation for $simTime $minuteWord... hold tight!") 
-startTime = time()
 start(simTime)
+sleep(0.5)
 
-# Display runtime and finish
-elapsedTime = (time() - startTime) / 60
-elapsedTime == 1 ? minuteWord = "minute" : minuteWord = "minutes"
-println("Simulation finished after $elapsedTime $minuteWord")
+# Farwell the user 👋
+println("Thanks for using Chorus Simulator, have a nice day 👋")
