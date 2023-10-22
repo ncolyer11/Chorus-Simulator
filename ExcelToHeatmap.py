@@ -5,7 +5,7 @@ from matplotlib.colors import LogNorm
 
 name = "Chorus Plant"
 max = 1
-# name = "Chorus Flower"
+name = "Chorus Flower"
 if name == "Chorus Flower":
     max = 0.5
 excel_file = pd.ExcelFile(name + ' Heatmap.xlsx')
@@ -17,7 +17,6 @@ for sheet_name in excel_file.sheet_names:
         i += 1
         continue
     data = excel_file.parse(sheet_name)
-    for row
 
     # Determine the number of slices in the Z-axis
     num_slices = data.shape[1] // 11
@@ -34,7 +33,7 @@ for sheet_name in excel_file.sheet_names:
     plt.figure(figsize=(25, 7))  # Adjust the figure size as needed
 
     # Customize axis labels
-    sns.heatmap(concatenated_data, cmap="rocket_r", annot=False, cbar=True, vmin=0, vmax=max, square=True, xticklabels=range(0, 121, 11), yticklabels=range(0, 22, 1), cbar_kws={'shrink': 0.6}, norm=LogNorm())
+    sns.heatmap(concatenated_data, cmap="rocket_r", annot=False, cbar=True, vmin=0, vmax=max, square=True, xticklabels=range(0, 121, 1), yticklabels=range(22, -1, -1), cbar_kws={'shrink': 0.6}, norm=LogNorm())
 
     # Add labels and title if necessary
     plt.xlabel('z slices (11 x wide)')
