@@ -243,7 +243,7 @@ function exportHeatmap(heatmapData::Array{Float64, 4}, name::String)
                     xlabel = "z slices (11 x wide)",
                     ylabel = "y layer",
                     title = "$(name): minute $minute"),
-                "heatmaps\\$name (minute $minute)") 
+                "meda\\heatmaps\\$name (minute $minute)") 
         catch error
             println("Error: $error")
             return false
