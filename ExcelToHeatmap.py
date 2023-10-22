@@ -30,19 +30,25 @@ for sheet_name in excel_file.sheet_names:
     # Concatenate the Z-slice data horizontally
     concatenated_data = pd.concat(z_slices, axis=1)
 
-    plt.figure(figsize=(25, 7))  # Adjust the figure size as needed
+    plt.figure(figsize=(25, 7))
 
-    # Customize axis labels
-    sns.heatmap(concatenated_data, cmap="rocket_r", annot=False, cbar=True, vmin=0, vmax=max, square=True, xticklabels=range(0, 121, 1), yticklabels=range(22, -1, -1), cbar_kws={'shrink': 0.6}, norm=LogNorm())
+    sns.heatmap(
+        concatenated_data,
+        cmap="rocket_r", annot=False,
+        cbar=True,
+        vmin=0,
+        vmax=max,
+        square=True,
+        xticklabels=range(0, 121, 1),
+        yticklabels=range(22, -1, -1),
+        cbar_kws={'shrink': 0.6},
+        norm=LogNorm()
+    )
 
-    # Add labels and title if necessary
     plt.xlabel('z slices (11 x wide)')
     plt.ylabel('ylabel = "y layer"')
     plt.title(f'{name}s at minute: {sheet_name}')
-
-    # Save the heatmap as a .png image
     plt.savefig(f'MatPlotHeatmaps\\heatmap_{name + sheet_name}.png', format='png', bbox_inches='tight')
     plt.close()
 
-# Close the Excel file
 excel_file.close()
