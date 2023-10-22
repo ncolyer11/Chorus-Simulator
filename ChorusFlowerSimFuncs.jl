@@ -60,7 +60,6 @@ function start(simMaxRunTime::Float64)
             # Simulate 3 randomticks per subchunk
             for i in 1:3
                 subChunkLowerPos, subChunkUpperPos = randSubChunkPos()
-                # println("Ticked Coords: $subChunkLowerPos $subChunkUpperPos")
                 if validPos(subChunkLowerPos, 15)
                     randomTick(World, subChunkLowerPos)
                 end
@@ -76,6 +75,7 @@ function start(simMaxRunTime::Float64)
             end
         end
         simmedChorus += 1
+        # Track average growth time
         if avgTimeIntervalsForGrowth == 0
             avgTimeIntervalsForGrowth = timeInterval
         else
@@ -121,12 +121,11 @@ end
 # Simulates the effects of a single random tick on a chorus flower
 function randomTick(World::Array{Int, 3}, pos::BlockPos)
     # If the block isn't a chorus flower then exit
-    id::Int = getBlockId(World, pos)
-    if !(id in CHORUS_FLOWERS)
+    blockId::Int = getBlockId(World, pos)
+    if !(blockId in CHORUS_FLOWERS)
         return
     end
-
-    age = getAge(id)
+    age = getAge(blockId)
     aboveBlock = blockUp(pos)
     # If the above block isn't within height limit or isn't air or age is ≥ 5 exit
     if aboveBlock.y + 1 > WORLD_HEIGHT || getBlockId(World, aboveBlock) ≠ AIR || age ≥ MAX_AGE
@@ -135,13 +134,13 @@ function randomTick(World::Array{Int, 3}, pos::BlockPos)
     # Check conditions to be able to grow vertically: canGrow
     # Also record any endstone 2 to 5 blocks below the chorus flower: endstn2To5Down
     canGrowAbove::Bool, endstn2To5Down::Bool = checkVerticalGrowth(World, pos)
-
     # If valid growth conditions and is sufficiently surrounded by air, grow vertically
     if canGrowAbove && isSurroundedByAir(World, aboveBlock, 0) && getBlockId(World, blockUp(pos, 2)) == AIR
         tryVerticalGrowth(World, pos)
     # Otherwise if age is less than 4 try grow to horizontally in 1-4 horizontal directions
     elseif age < 4
         tryHorizontalGrowth(World, pos, endstn2To5Down)
+    # Otherwise wither away 😦
     else
         dieChorus(World, pos)
     end
@@ -186,7 +185,8 @@ function finish(chorusFlowerHeatmap::Array{Float64, 4}, chorusPlantHeatmap::Arra
     end
     
     # Export heatmap data as a set of pngs
-    # Currently 'heatmap()' is bugged on Julia so Python and MatPlotLib are currently being used in a separate file for the heatmaps
+    # Currently 'heatmap()' is bugged on Julia so Python and
+    # MatPlotLib are currently being used in a separate file for the heatmaps
     println("Exporting Heatmaps...")
     check1 = exportHeatmap(chorusFlowerHeatmap, "Chorus Flower Heatmap")
     check2 = exportHeatmap(chorusPlantHeatmap, "Chorus Plant Heatmap")
@@ -197,38 +197,72 @@ function finish(chorusFlowerHeatmap::Array{Float64, 4}, chorusPlantHeatmap::Arra
     end
 end
 
-# Returns BlockPos value of above block
-function blockUp(blockPos::BlockPos, amount::Int=1)
-    return BlockPos(blockPos.x, blockPos.y + amount, blockPos.z)
-end
-
-# Returns BlockPos value of below block
-function blockDown(blockPos::BlockPos, amount::Int=1)
-    return BlockPos(blockPos.x, blockPos.y - amount, blockPos.z)
-end
-
-# Returns the age of the block given an Id, returns an error code of -1 if not a chorus flower
-function getAge(blockId::Int)
-    if blockId in CHORUS_FLOWERS
-        return blockId # As the block ID of chorus flowers in this sim is also conveniantly its age
-    else
-        println("Invalid BlockID: $blockId")
-        return -1
+# Write heatmap data to an excel file
+function saveHeatmap(heatmap::Array{Float64, 4}, name::String)
+    try
+        # Create a new Excel file
+        XLSX.openxlsx("$(name).xlsx", mode="w") do xf
+            for minute in 0:(30)
+                # Create a new sheet for each time interval
+                !XLSX.hassheet(xf, "$minute") && XLSX.addsheet!(xf, "$minute")
+                sheet = xf[minute + 2]
+                minuteSlice = view(heatmap, :, :, :, minute + 1)
+                for (x,y,z) in Iterators.product(axes(minuteSlice, 1), axes(minuteSlice, 2), axes(minuteSlice, 3))
+                    col = x - 1 + (11 * (z - 1))
+                    row = 23 - y
+                    sheet[row + 1, col + 1] = heatmap[x, y, z, minute + 1]
+                end
+            end
+        end
+    catch error
+        println("Error: $error")
+        return false
     end
+    return true
 end
 
-# Retrieves the block type at 'BlockPos'
-function getBlockId(World::Array{Int, 3}, pos::BlockPos)
-    if pos.y + 1 > WORLD_HEIGHT
-        return AIR
-    else
-        return World[pos.x + 1, pos.y + 1, pos.z + 1] # + 1 as Julia is 1-indexed 🤨
+# Export heatmaps as a set of PNG files
+# Currently 'heatmap()' is bugged on Julia so Python and
+# MatPlotLib are currently being used in a separate file for the heatmaps
+function exportHeatmap(heatmapData::Array{Float64, 4}, name::String)
+    for minute in 0:30
+        # Convert the heatmap to 2D to be able to plotted
+        flattenedHeatmap = heatmapTo2D(heatmapData, minute)
+        try
+            gr(dpi=500, size=(2500 / 5, 1200 / 5))
+            png(
+                heatmap(
+                    1:size(flattenedHeatmap, 1),
+                    1:size(flattenedHeatmap, 2),
+                    flattenedHeatmap,
+                    aspect_ratio=:equal,
+                    clims=(0, 1),
+                    xlims=(0, 120),
+                    ylims=(0, 22),
+                    c = cgrad([:white, :orange, :purple], [0, 0.001, 0.1]),
+                    xlabel = "z slices (11 x wide)",
+                    ylabel = "y layer",
+                    title = "$(name): minute $minute"),
+                "heatmaps\\$name (minute $minute)") 
+        catch error
+            println("Error: $error")
+            return false
+        end
     end
+    return true
 end
 
-# Sets or places a block of 'blockId' at 'BlockPos'
-function setBlockId(World::Array{Int, 3}, pos::BlockPos, blockId::Int)
-    World[pos.x + 1, pos.y + 1, pos.z + 1] = blockId
+# Flattens a slice of a 4D heatmap to be 2D so it can be plotted on a 2D heatmap
+function heatmapTo2D(heatmapData::Array{Float64, 4}, minute::Int)
+    # Extract slice of the heatmap at a certain minute interval
+    heatmapSlice = view(heatmapData, :, :, :, minute + 1)
+    flattenedHeatmap = fill(Float64(0), (size(heatmapSlice, 1)^2, WORLD_HEIGHT))
+    for (x,y,z) in Iterators.product(axes(heatmapSlice, 1), axes(heatmapSlice, 2), axes(heatmapSlice, 3))
+        col = x + (11 * (z - 1))
+        row = y
+        flattenedHeatmap[col, row] = heatmapSlice[x, y, z]
+    end
+    return flattenedHeatmap
 end
 
 # Checks to see if the chorus can grow vertically
@@ -310,14 +344,28 @@ function tryHorizontalGrowth(World::Array{Int, 3}, pos::BlockPos, endstn2To5Down
     end
 end
 
-# Grows a chorus flower at 'blockPos' to age 'age'
-function growChorus(World::Array{Int, 3}, pos::BlockPos, age::Int)
-    setBlockId(World, pos, CHORUS_FLOWERS[age + 1])
+# Retrieves the block type at 'BlockPos'
+function getBlockId(World::Array{Int, 3}, pos::BlockPos)
+    if pos.y + 1 > WORLD_HEIGHT
+        return AIR
+    else
+        return World[pos.x + 1, pos.y + 1, pos.z + 1] # + 1 as Julia is 1-indexed 🤨
+    end
 end
 
-# Grows a chorus flower at 'blockPos' to age 5 (dead)
-function dieChorus(World::Array{Int, 3}, pos::BlockPos)
-    setBlockId(World, pos, CHORUS_FLOWER_AGE_5)
+# Sets or places a block of 'blockId' at 'BlockPos'
+function setBlockId(World::Array{Int, 3}, pos::BlockPos, blockId::Int)
+    World[pos.x + 1, pos.y + 1, pos.z + 1] = blockId
+end
+
+# Returns BlockPos value of above block
+function blockUp(blockPos::BlockPos, amount::Int=1)
+    return BlockPos(blockPos.x, blockPos.y + amount, blockPos.z)
+end
+
+# Returns BlockPos value of below block
+function blockDown(blockPos::BlockPos, amount::Int=1)
+    return BlockPos(blockPos.x, blockPos.y - amount, blockPos.z)
 end
 
 # Returns a blockpos of an offset block of a given direction
@@ -336,6 +384,26 @@ function offsetBlock(pos::BlockPos, direction::Int)
     end
 end
 
+# Returns the age of the block given an Id, returns an error code of -1 if not a chorus flower
+function getAge(blockId::Int)
+    if blockId in CHORUS_FLOWERS
+        return blockId # As the block ID of chorus flowers in this sim is also conveniantly its age
+    else
+        println("Invalid BlockID: $blockId")
+        return -1
+    end
+end
+
+# Grows a chorus flower at 'blockPos' to age 'age'
+function growChorus(World::Array{Int, 3}, pos::BlockPos, age::Int)
+    setBlockId(World, pos, CHORUS_FLOWERS[age + 1])
+end
+
+# Grows a chorus flower at 'blockPos' to age 5 (dead)
+function dieChorus(World::Array{Int, 3}, pos::BlockPos)
+    setBlockId(World, pos, CHORUS_FLOWER_AGE_5)
+end
+
 # Direction 0 means there's no exception direction
 # Checks surrounding horizontal blocks are all air
 function isSurroundedByAir(World::Array{Int, 3}, pos::BlockPos, exceptDirection::Int)::Bool
@@ -346,70 +414,4 @@ function isSurroundedByAir(World::Array{Int, 3}, pos::BlockPos, exceptDirection:
         return false
     end
     return true
-end
-
-# Write heatmap data to an excel file
-function saveHeatmap(heatmap::Array{Float64, 4}, name::String)
-    try
-        # Create a new Excel file
-        XLSX.openxlsx("$(name).xlsx", mode="w") do xf
-            for minute in 0:(30)
-                # Create a new sheet for each time interval
-                !XLSX.hassheet(xf, "$minute") && XLSX.addsheet!(xf, "$minute")
-                sheet = xf[minute + 2]
-                minuteSlice = view(heatmap, :, :, :, minute + 1)
-                for (x,y,z) in Iterators.product(axes(minuteSlice, 1), axes(minuteSlice, 2), axes(minuteSlice, 3))
-                    col = x - 1 + (11 * (z - 1))
-                    row = 23 - y
-                    sheet[row + 1, col + 1] = heatmap[x, y, z, minute + 1]
-                end
-            end
-        end
-    catch error
-        println("Error: $error")
-        return false
-    end
-    return true
-end
-
-# Export heatmaps as a set of PNG files
-function exportHeatmap(heatmapData::Array{Float64, 4}, name::String)
-    for minute in 0:30
-        # Convert the heatmap to 2D to be able to plotted
-        flattenedHeatmap = heatmapTo2D(heatmapData, minute)
-        try
-            gr(dpi=500, size=(2500 / 5, 1200 / 5))
-            png(
-                heatmap(
-                    clims=(0, 1),
-                    aspect_ratio=:equal,
-                    xlims=(0, 120),
-                    ylims=(0, 22),
-                    1:size(flattenedHeatmap, 1),
-                    1:size(flattenedHeatmap, 2),
-                    flattenedHeatmap,
-                    c = cgrad([:white, :orange, :purple], [0, 0.001, 0.1]),
-                    xlabel = "z slices (11 x wide)",
-                    ylabel = "y layer",
-                    title = "$(name): minute $minute"),
-                "heatmaps\\$name (minute $minute)") 
-        catch error
-            println("Error: $error")
-            return false
-        end
-    end
-    return true
-end
-
-# Flattens a slice of a 4D heatmap to be 2D so it can be plotted on a 2D heatmap
-function heatmapTo2D(heatmapData::Array{Float64, 4}, minute::Int)
-    # Extract slice of the heatmap at a certain minute interval
-    heatmapSlice = view(heatmapData, :, :, :, minute + 1)
-    flattenedHeatmap = fill(Float64(0), (size(heatmapSlice, 1)^2, WORLD_HEIGHT))
-    for (x,y,z) in Iterators.product(axes(heatmapSlice, 1), axes(heatmapSlice, 2), axes(heatmapSlice, 3))
-        col = x + (11 * (z - 1))
-        row = y
-        flattenedHeatmap[col, row] = heatmapSlice[x, y, z]
-    end
-    return flattenedHeatmap
 end
