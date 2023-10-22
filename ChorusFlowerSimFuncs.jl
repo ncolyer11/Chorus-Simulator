@@ -36,11 +36,18 @@ function start(simMaxRunTime::Float64)
     avgTimeIntervalsForGrowth = 0.0
     startTime = time_ns()
     elapsedTime = time_ns() - startTime
+    lastMinute::Int64 = 0
     while true
         # Check if the elapsed time exceeds the maximum runtime
         elapsedTime = time_ns() - startTime
-        if elapsedTime > simMaxRunTime * 60000000000 # converting m to ns
+        currentMinute = floor(elapsedTime / 60e9)
+        if elapsedTime > simMaxRunTime * 60e9 # converting m to ns
             break
+        elseif currentMinute != lastMinute
+            lastMinute = currentMinute
+            remainingTime = simMaxRunTime - currentMinute
+            remainingTime == 1 ? minuteWord = "minute" : minuteWord = "minutes"
+            println("$remainingTime $minuteWord remaining")
         end
         # Initialise world state to all air
         World = fill(AIR, (11, WORLD_HEIGHT, 11))
@@ -64,7 +71,6 @@ function start(simMaxRunTime::Float64)
             randomTicks += 6
             # Every in-game/simulation minute (7200 random ticks), update the heatmap and increment one time interval
             if rem(randomTicks, 7200) == 0
-                # println( "$randomTicks at time $(time_ns() - startTime) for time interval $timeInterval")
                 aliveFlowers = updateHeatmaps(World, chorusFlowerHeatmap, chorusPlantHeatmap, timeInterval, simmedChorus)
                 timeInterval += 1
             end
@@ -83,38 +89,33 @@ function start(simMaxRunTime::Float64)
     
     # Display runtime
     elapsedTime == 1 ? minuteWord = "minute" : minuteWord = "minutes"
-    println("Maximum runtime reached after $(elapsedTime/60000000000) $minuteWord. Exiting the simulation.")
+    println("Maximum runtime reached after $(elapsedTime/60e9) $minuteWord. Exiting the simulation.")
     sleep(0.5)
     
     # Output simulation some general simulation statistics
     simmedChorus == 1 ? flowerWord = "flower" : flowerWord = "flowers"
-    println("Simulated $simmedChorus chorus $flowerWord over $randomTicks randomticks ($(randomTicks/432000) hours)")
+    println("Simulated $simmedChorus chorus $flowerWord over $randomTicks randomticks ($(randomTicks/432e3) hours)")
     println("Average chorus flower took $avgTimeIntervalsForGrowth minutes to fully grow")
 
     # Save heatmap data to an excel file
     finish(chorusFlowerHeatmap, chorusPlantHeatmap)
 end
 
-# Finish the simulation by saving and exporting the data
-function finish(chorusFlowerHeatmap::Array{Float64, 4}, chorusPlantHeatmap::Array{Float64, 4})
-    println("Saving heatmaps...")
-    check1 = saveHeatmap(chorusFlowerHeatmap, "Chorus Flower Heatmap")
-    check2 = saveHeatmap(chorusPlantHeatmap, "Chorus Plant Heatmap")
-    if check1 && check2 
-        println("Heatmaps saved successfully")
-    else
-        println("Error saving heatmaps")
-    end
-    
-    # Export heatmap data as a set of pngs
-    println("Exporting Heatmaps...")
-    check1 = exportHeatmap(chorusFlowerHeatmap, "Chorus Flower Heatmap")
-    check2 = exportHeatmap(chorusPlantHeatmap, "Chorus Plant Heatmap")
-    if check1 && check2 
-        println("Heatmaps exported successfully")
-    else
-        println("Error exporting heatmaps")
-    end
+# Returns 2 randomly chosen coords for each subchunk a chorus sits in (min 2)
+function randSubChunkPos()
+    return (
+        BlockPos(rand(0:15), rand(0:15), rand(0:15)),
+        BlockPos(rand(0:15), rand(15:31), rand(0:15))
+    )
+end
+
+# Checks to see if random sub-chunk coords are within a chorus plant's bounding box
+function validPos(pos::BlockPos, maxHeight::Int)
+    # If pos has a taxi distance within 5 of the centre and height is low enough return true
+    return abs(pos.x - 5) + abs(pos.z - 5) ≤ 5 && pos.y + 1 ≤ min(maxHeight, WORLD_HEIGHT)
+    #= Old algorithm that checked within the entire rectangular bounding box,
+    Rather than the taxicab cylinder of radii 5:
+    return !(pos.x + 1 > 11 || pos.y + 1 > min(maxHeight, WORLD_HEIGHT) || pos.z + 1 > 11) =#
 end
 
 # Simulates the effects of a single random tick on a chorus flower
@@ -143,6 +144,56 @@ function randomTick(World::Array{Int, 3}, pos::BlockPos)
         tryHorizontalGrowth(World, pos, endstn2To5Down)
     else
         dieChorus(World, pos)
+    end
+end
+
+# Updates the 4D chorus plant heatmap at the given minute interval
+function updateHeatmaps(World::Array{Int, 3}, chorusFlowerHeatmap::Array{Float64, 4}, chorusPlantHeatmap::Array{Float64, 4}, minute::Int, simmedChorus::Int)
+    # Optimisation step to track alive flowers and skip to the next chorus if the current one is already dead
+    aliveFlowers = 0
+    for (i,j,k) in Iterators.product(axes(World, 1), axes(World, 2), axes(World, 3))
+        blockId = World[i, j, k]
+        if blockId in CHORUS_FLOWERS && blockId != MAX_AGE
+            aliveFlowers += 1
+        end
+        # Calculate cumulative average
+        flower = 0
+        if blockId in CHORUS_FLOWERS
+            flower = 1
+        end
+        prevFlowerAvg = chorusFlowerHeatmap[i, j, k, minute + 1]
+        chorusFlowerHeatmap[i, j, k, minute + 1] = (simmedChorus * prevFlowerAvg + flower) / (simmedChorus + 1)
+        
+        fruit = 0
+        if blockId == CHORUS_PLANT
+            fruit = 1
+        end
+        prevPlantAvg = chorusPlantHeatmap[i, j, k, minute + 1]
+        chorusPlantHeatmap[i, j, k, minute + 1] = (simmedChorus * prevPlantAvg + fruit) / (simmedChorus + 1)
+    end
+    return aliveFlowers
+end
+
+# Finish the simulation by saving and exporting the data
+function finish(chorusFlowerHeatmap::Array{Float64, 4}, chorusPlantHeatmap::Array{Float64, 4})
+    println("Saving heatmaps...")
+    check1 = saveHeatmap(chorusFlowerHeatmap, "Chorus Flower Heatmap")
+    check2 = saveHeatmap(chorusPlantHeatmap, "Chorus Plant Heatmap")
+    if check1 && check2 
+        println("Heatmaps saved successfully")
+    else
+        println("Error saving heatmaps")
+    end
+    
+    # Export heatmap data as a set of pngs
+    # Currently 'heatmap()' is bugged on Julia so Python and MatPlotLib are currently being used in a separate file for the heatmaps
+    println("Exporting Heatmaps...")
+    check1 = exportHeatmap(chorusFlowerHeatmap, "Chorus Flower Heatmap")
+    check2 = exportHeatmap(chorusPlantHeatmap, "Chorus Plant Heatmap")
+    if check1 && check2 
+        println("Heatmaps exported successfully")
+    else
+        println("Error exporting heatmaps")
     end
 end
 
@@ -178,23 +229,6 @@ end
 # Sets or places a block of 'blockId' at 'BlockPos'
 function setBlockId(World::Array{Int, 3}, pos::BlockPos, blockId::Int)
     World[pos.x + 1, pos.y + 1, pos.z + 1] = blockId
-end
-
-# Returns 2 randomly chosen coords for each subchunk a chorus sits in (min 2)
-function randSubChunkPos()
-    return (
-        BlockPos(rand(0:15), rand(0:15), rand(0:15)),
-        BlockPos(rand(0:15), rand(15:31), rand(0:15))
-    )
-end
-
-# Checks to see if random sub-chunk coords are within a chorus plant's bounding box
-function validPos(pos::BlockPos, maxHeight::Int)
-    # If pos has a taxi distance within 5 of the centre and height is low enough return true
-    return abs(pos.x - 5) + abs(pos.z - 5) ≤ 5 && pos.y + 1 ≤ min(maxHeight, WORLD_HEIGHT)
-    # Old algorithm that checked within the entire rectangular bounding box,
-    # Rather than the taxicab cylinder of radii 5
-    # return !(pos.x + 1 > 11 || pos.y + 1 > min(maxHeight, WORLD_HEIGHT) || pos.z + 1 > 11)
 end
 
 # Checks to see if the chorus can grow vertically
@@ -314,27 +348,6 @@ function isSurroundedByAir(World::Array{Int, 3}, pos::BlockPos, exceptDirection:
     return true
 end
 
-# Updates the 4D chorus plant heatmap at the given minute interval
-function updateHeatmaps(World::Array{Int, 3}, chorusFlowerHeatmap::Array{Float64, 4}, chorusPlantHeatmap::Array{Float64, 4}, minute::Int, simmedChorus::Int)
-    # Optimisation step to track alive flowers and skip to the next chorus if the current one is already dead
-    aliveFlowers = 0
-    for (i,j,k) in Iterators.product(axes(World, 1), axes(World, 2), axes(World, 3))
-        blockId = World[i, j, k]
-        if blockId in CHORUS_FLOWERS && blockId != MAX_AGE
-            aliveFlowers += 1
-        end
-        # Calculate cumulative average
-        if blockId in CHORUS_FLOWERS
-            prevFlowerAvg = chorusFlowerHeatmap[i, j, k, minute + 1]
-            chorusFlowerHeatmap[i, j, k, minute + 1] = (simmedChorus * prevFlowerAvg + 1) / (simmedChorus + 1)
-        elseif blockId == CHORUS_PLANT
-            prevPlantAvg = chorusFlowerHeatmap[i, j, k, minute + 1]
-            chorusPlantHeatmap[i, j, k, minute + 1] = (simmedChorus * prevPlantAvg + 1) / (simmedChorus + 1)
-        end
-    end
-    return aliveFlowers
-end
-
 # Write heatmap data to an excel file
 function saveHeatmap(heatmap::Array{Float64, 4}, name::String)
     try
@@ -365,7 +378,7 @@ function exportHeatmap(heatmapData::Array{Float64, 4}, name::String)
         # Convert the heatmap to 2D to be able to plotted
         flattenedHeatmap = heatmapTo2D(heatmapData, minute)
         try
-            gr(dpi=500, size=(2500/5, 900/5))
+            gr(dpi=500, size=(2500 / 5, 1200 / 5))
             png(
                 heatmap(
                     clims=(0, 1),
@@ -375,7 +388,7 @@ function exportHeatmap(heatmapData::Array{Float64, 4}, name::String)
                     1:size(flattenedHeatmap, 1),
                     1:size(flattenedHeatmap, 2),
                     flattenedHeatmap,
-                    c = cgrad([:white, :orange, :purple], [0, 0.005, 0.1]),
+                    c = cgrad([:white, :orange, :purple], [0, 0.001, 0.1]),
                     xlabel = "z slices (11 x wide)",
                     ylabel = "y layer",
                     title = "$(name): minute $minute"),
