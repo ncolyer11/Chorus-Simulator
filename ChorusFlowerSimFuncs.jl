@@ -33,6 +33,7 @@ function start(simMaxRunTime::Float64)
     chorusFlowerHeatmap = fill(Float64(0), (11, WORLD_HEIGHT, 11, MAX_SIM_CYCLE_MINUTES + 1))
     chorusPlantHeatmap = fill(Float64(0), (11, WORLD_HEIGHT, 11, MAX_SIM_CYCLE_MINUTES + 1))
     simmedChorus = 0
+    avgTimeIntervalsForGrowth = 0.0
     startTime = time_ns()
     elapsedTime = time_ns() - startTime
     while true
@@ -68,20 +69,27 @@ function start(simMaxRunTime::Float64)
                 timeInterval += 1
             end
         end
+        simmedChorus += 1
+        if avgTimeIntervalsForGrowth == 0
+            avgTimeIntervalsForGrowth = timeInterval
+        else
+            avgTimeIntervalsForGrowth = (simmedChorus * avgTimeIntervalsForGrowth + timeInterval) / (simmedChorus + 1)
+        end
+        # Quick-sim remaining time intervals (system has reached stability now that all chorus flowers are dead)
         for remainingTimeIntervals in (timeInterval + 1):MAX_SIM_CYCLE_MINUTES
             updateHeatmaps(World, chorusFlowerHeatmap, chorusPlantHeatmap, remainingTimeIntervals, simmedChorus)
         end
-        simmedChorus += 1
     end
     
     # Display runtime
     elapsedTime == 1 ? minuteWord = "minute" : minuteWord = "minutes"
     println("Maximum runtime reached after $(elapsedTime/60000000000) $minuteWord. Exiting the simulation.")
     sleep(0.5)
-
+    
     # Output simulation some general simulation statistics
     simmedChorus == 1 ? flowerWord = "flower" : flowerWord = "flowers"
     println("Simulated $simmedChorus chorus $flowerWord over $randomTicks randomticks ($(randomTicks/432000) hours)")
+    println("Average chorus flower took $avgTimeIntervalsForGrowth minutes to fully grow")
 
     # Save heatmap data to an excel file
     finish(chorusFlowerHeatmap, chorusPlantHeatmap)
@@ -315,10 +323,13 @@ function updateHeatmaps(World::Array{Int, 3}, chorusFlowerHeatmap::Array{Float64
         if blockId in CHORUS_FLOWERS && blockId != MAX_AGE
             aliveFlowers += 1
         end
+        # Calculate cumulative average
         if blockId in CHORUS_FLOWERS
-            chorusFlowerHeatmap[i, j, k, minute + 1] = (1 + chorusFlowerHeatmap[i, j, k, minute + 1]) / (simmedChorus + 1)
+            prevFlowerAvg = chorusFlowerHeatmap[i, j, k, minute + 1]
+            chorusFlowerHeatmap[i, j, k, minute + 1] = (simmedChorus * prevFlowerAvg + 1) / (simmedChorus + 1)
         elseif blockId == CHORUS_PLANT
-            chorusPlantHeatmap[i, j, k, minute + 1] = (1 + chorusPlantHeatmap[i, j, k, minute + 1]) / (simmedChorus + 1)
+            prevPlantAvg = chorusFlowerHeatmap[i, j, k, minute + 1]
+            chorusPlantHeatmap[i, j, k, minute + 1] = (simmedChorus * prevPlantAvg + 1) / (simmedChorus + 1)
         end
     end
     return aliveFlowers
@@ -354,17 +365,17 @@ function exportHeatmap(heatmapData::Array{Float64, 4}, name::String)
         # Convert the heatmap to 2D to be able to plotted
         flattenedHeatmap = heatmapTo2D(heatmapData, minute)
         try
-            gr(dpi=500)
+            gr(dpi=500, size=(2500/5, 900/5))
             png(
                 heatmap(
-                    clims=(0, 0.2),
+                    clims=(0, 1),
                     aspect_ratio=:equal,
                     xlims=(0, 120),
                     ylims=(0, 22),
                     1:size(flattenedHeatmap, 1),
                     1:size(flattenedHeatmap, 2),
                     flattenedHeatmap,
-                    c = cgrad([:white, :orange, :orange, :orange, :orange, :orange, :orange, :orange, :orange, :orange, :orange, :orange, :purple, :purple, :purple, :purple, :purple, :purple]),
+                    c = cgrad([:white, :orange, :purple], [0, 0.005, 0.1]),
                     xlabel = "z slices (11 x wide)",
                     ylabel = "y layer",
                     title = "$(name): minute $minute"),
@@ -383,9 +394,9 @@ function heatmapTo2D(heatmapData::Array{Float64, 4}, minute::Int)
     heatmapSlice = view(heatmapData, :, :, :, minute + 1)
     flattenedHeatmap = fill(Float64(0), (size(heatmapSlice, 1)^2, WORLD_HEIGHT))
     for (x,y,z) in Iterators.product(axes(heatmapSlice, 1), axes(heatmapSlice, 2), axes(heatmapSlice, 3))
-        col = x - 1 + (11 * (z - 1))
-        row = y - 1
-        flattenedHeatmap[col + 1, row + 1] = heatmapSlice[x, y, z]
+        col = x + (11 * (z - 1))
+        row = y
+        flattenedHeatmap[col, row] = heatmapSlice[x, y, z]
     end
     return flattenedHeatmap
 end
