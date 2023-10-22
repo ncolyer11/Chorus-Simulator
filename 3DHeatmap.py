@@ -30,14 +30,14 @@ values = array_3d.flatten()
 values[values == 0] = np.nan
 
 # Create a 3D scatter plot
-fig = plt.figure(figsize=(10, 10))
+fig = plt.figure(figsize=(20, 20))
 ax = fig.add_subplot(111, projection='3d')
 
 # Use Matplotlib's scatter function to plot the data
-sc = ax.scatter(z_flat, x_flat, 22 - y_flat, c=values, cmap="nipy_spectral", s=100, norm=LogNorm())
+sc = ax.scatter(z_flat, x_flat, 22 - y_flat, c=values, cmap="CMRmap_r", s=100, norm=LogNorm())
 
 # Create a colorbar to show the values
-cbar = fig.colorbar(sc)
+cbar = fig.colorbar(sc, shrink=0.5)
 
 # Customize the plot as needed (title, labels, etc.)
 ax.set_title('3D Heatmap')

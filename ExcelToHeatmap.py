@@ -42,7 +42,7 @@ for sheet_name in excel_file.sheet_names:
     plt.title(f'{name}s at minute: {sheet_name}')
 
     # Save the heatmap as a .png image
-    plt.savefig(f'MatPlotHeatmaps\\heatmap_{name + sheet_name}.png', format='png',bbox_inches='tight')
+    plt.savefig(f'MatPlotHeatmaps\\heatmap_{name + sheet_name}.png', format='png', bbox_inches='tight')
     plt.close()
 
 # Close the Excel file
