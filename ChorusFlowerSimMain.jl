@@ -13,9 +13,9 @@ Replicates chorus flower growth code from deobfuscated java game code
 Records data using normal arithmetic and variables (may need to use atomics if multi-threading)
 =#
 
-using Dates
 include("ChorusFlowerSimFuncs.jl")
 
+# Get user input to determine simulation runtime
 function getinput()
     simTime = 0
     while true
@@ -29,17 +29,18 @@ function getinput()
     return simTime
 end
 
+
 # Welcome the user 🥰
 println("Welcome to Chorus Simulator")
-sleep(0.5)
+sleep(0.25)
 print("Please enter how long you want to run your next simulation for (m): ")
 simTime = getinput()
 
 # Start the simulation
 simTime == 1 ? minuteWord = "minute" : minuteWord = "minutes"
-println("Running a simulation for $simTime $minuteWord... hold tight!") 
+println("Running a simulation for $simTime $minuteWord... hold tight!")
 start(simTime)
-sleep(0.5)
+sleep(0.25)
 
 # Farwell the user 👋
 println("Thanks for using Chorus Simulator, have a nice day 👋")
