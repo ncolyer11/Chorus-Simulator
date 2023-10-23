@@ -24,6 +24,7 @@ const END_STONE::Int = 11
 const CHORUS_PLANT::Int = 12 
 # Simulation world height
 const WORLD_HEIGHT::Int = 23
+# Max runtime (chosen as ~95% of chorus are fully grown by then)
 const MAX_SIM_CYCLE_MINUTES::Int = 30
 
 
@@ -92,7 +93,7 @@ function start(simMaxRunTime::Float64)
     println("Maximum runtime reached after $(elapsedTime/60e9) $minuteWord. Exiting the simulation.")
     sleep(0.5)
     
-    # Output simulation some general simulation statistics
+    # Output some general simulation statistics
     simmedChorus == 1 ? flowerWord = "flower" : flowerWord = "flowers"
     println("Simulated $simmedChorus chorus $flowerWord over $randomTicks randomticks ($(randomTicks/432e3) hours)")
     println("Average chorus flower took $avgTimeIntervalsForGrowth minutes to fully grow")
@@ -146,7 +147,7 @@ function randomTick(World::Array{Int, 3}, pos::BlockPos)
     end
 end
 
-# Updates the 4D chorus plant heatmap at the given minute interval
+# Updates the 4D chorus plant and flower heatmaps at the given minute interval
 function updateHeatmaps(World::Array{Int, 3}, chorusFlowerHeatmap::Array{Float64, 4}, chorusPlantHeatmap::Array{Float64, 4}, minute::Int, simmedChorus::Int)
     # Optimisation step to track alive flowers and skip to the next chorus if the current one is already dead
     aliveFlowers = 0
@@ -202,15 +203,15 @@ function saveHeatmap(heatmap::Array{Float64, 4}, name::String)
     try
         # Create a new Excel file
         XLSX.openxlsx("$(name).xlsx", mode="w") do xf
-            for minute in 0:(30)
+            for minute in 0:(MAX_SIM_CYCLE_MINUTES)
                 # Create a new sheet for each time interval
                 !XLSX.hassheet(xf, "$minute") && XLSX.addsheet!(xf, "$minute")
                 sheet = xf[minute + 2]
                 minuteSlice = view(heatmap, :, :, :, minute + 1)
                 for (x,y,z) in Iterators.product(axes(minuteSlice, 1), axes(minuteSlice, 2), axes(minuteSlice, 3))
-                    col = x - 1 + (11 * (z - 1))
-                    row = 23 - y
-                    sheet[row + 1, col + 1] = heatmap[x, y, z, minute + 1]
+                    col = x + (11 * (z - 1))
+                    row = 24 - y
+                    sheet[row, col] = heatmap[x, y, z, minute + 1]
                 end
             end
         end
@@ -225,8 +226,8 @@ end
 # Currently 'heatmap()' is bugged on Julia so Python and
 # MatPlotLib are currently being used in a separate file for the heatmaps
 function exportHeatmap(heatmapData::Array{Float64, 4}, name::String)
-    for minute in 0:30
-        # Convert the heatmap to 2D to be able to plotted
+    for minute in 0:MAX_SIM_CYCLE_MINUTES
+        # Convert the heatmap to 2D to be able to be plotted
         flattenedHeatmap = heatmapTo2D(heatmapData, minute)
         try
             gr(dpi=500, size=(2500 / 5, 1200 / 5))
@@ -243,7 +244,7 @@ function exportHeatmap(heatmapData::Array{Float64, 4}, name::String)
                     xlabel = "z slices (11 x wide)",
                     ylabel = "y layer",
                     title = "$(name): minute $minute"),
-                "meda\\heatmaps\\$name (minute $minute)") 
+                "media\\heatmaps\\$name (minute $minute)") 
         catch error
             println("Error: $error")
             return false
@@ -308,13 +309,13 @@ function tryVerticalGrowth(World::Array{Int, 3}, pos::BlockPos)
     age::Int = getAge(getBlockId(World, pos))
     # Replace chorus flower with a plant
     setBlockId(World, pos, CHORUS_PLANT)
-    # Grow function to grow plants until it gets to another flower
+    # Grow chorus flower above
     growChorus(World, blockUp(pos), age)
 end
 
 # Attempt to grow a chorus flower horizontally after being randomticked
 function tryHorizontalGrowth(World::Array{Int, 3}, pos::BlockPos, endstn2To5Down::Bool)
-    # Note: this can be ZERO, meaning the chorus flower can just die on the spot if there's more than 1 chorus plant below it e.g.
+    # Note: this can be ZERO, meaning the chorus flower can just die on the spot if there's > 1 chorus plant below it
     directionPicks::Int = rand(0:3)
     # If there's endstone 2 to 5 blocks below the chorus flower, increment directionPicks
     if endstn2To5Down
@@ -324,21 +325,22 @@ function tryHorizontalGrowth(World::Array{Int, 3}, pos::BlockPos, endstn2To5Down
     # Runs 'directionPicks' amount of times to try and grow at different directions horizontally adjacent to the chorus flower
     # Means it could branch off into up to min(directionPicks, 4) directions
     for l in 1:directionPicks
-        # Random is the seed for the given random tick 
-        # Essentially this just gives a 1/4 chance for either horizontal direction to be chosen
+        # Pick either of the 4 horizontal directions
         direction::Int = rand(1:4)
         adjBlockPos = offsetBlock(pos, direction)
         age::Int = getAge(getBlockId(World, pos))
-        # To grow, adjacent block, all sides horizontal to it (exc chorus flower side) and the block below that has to be air
+        # To grow to the adjacent block, all sides horizontal to it (exc chorus flower side) and the block below that has to be air
         if (getBlockId(World, adjBlockPos) == AIR &&
-            getBlockId(World, blockDown(adjBlockPos)) == AIR ||
+            getBlockId(World, blockDown(adjBlockPos)) == AIR &&
             isSurroundedByAir(World, adjBlockPos, 5 - direction)) # Maps direction to its opposite using: x ↦ 5 - x
-            growChorus(World, adjBlockPos, age + 1) # Only if the chorus flower moves to the side, does it's age increase
+            growChorus(World, adjBlockPos, age + 1) # Only if the chorus flower grows to the side, does it's age increase
             grewAdjacent = true
         end
     end
     if grewAdjacent
         setBlockId(World, pos, CHORUS_PLANT)
+    # Chorus flower can die if it is unable to grow vertically
+    # And fails it's first horizontal growth attempt cycle
     else
         dieChorus(World, pos)
     end
@@ -368,7 +370,7 @@ function blockDown(blockPos::BlockPos, amount::Int=1)
     return BlockPos(blockPos.x, blockPos.y - amount, blockPos.z)
 end
 
-# Returns a blockpos of an offset block of a given direction
+# Returns a blockpos of an offset block of a given direction, returns an error code of -1 if direction is invalid
 function offsetBlock(pos::BlockPos, direction::Int)
     if direction == 1
         return BlockPos(pos.x + 1, pos.y, pos.z)
