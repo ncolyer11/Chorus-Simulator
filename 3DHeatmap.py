@@ -10,10 +10,8 @@ MAX_SIM_CYCLE_MINUTES = 30
 names = ["Chorus Plant", "Chorus Flower"]
 for name in names:
     max = 1
-    # name = "Chorus Flower" # uncomment this to switch between plants and flowers
     if name == "Chorus Flower":
         max = 0.5
-
     excelFile = pd.ExcelFile(name + ' Heatmap.xlsx')
 
     data = excelFile.parse(MAX_SIM_CYCLE_MINUTES) # read from oldest sheet
