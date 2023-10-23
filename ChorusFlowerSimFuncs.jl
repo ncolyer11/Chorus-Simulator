@@ -196,6 +196,8 @@ function finish(chorusFlowerHeatmap::Array{Float64, 4}, chorusPlantHeatmap::Arra
     else
         println("Error exporting heatmaps")
     end
+    # Run Python-MatPlotLib alternate version of exporting the heatmaps
+    run(`ExcelToHeatmap.py`)
 end
 
 # Write heatmap data to an excel file
