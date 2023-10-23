@@ -13,7 +13,7 @@ Replicates chorus flower growth code from deobfuscated java game code
 Records data using normal arithmetic and variables (may need to use atomics if multi-threading)
 =#
 
-include("ChorusFlowerSimFuncs.jl")
+include("ChorusSimulatorFuncs.jl")
 
 
 # Get user input to determine simulation runtime
@@ -32,7 +32,7 @@ end
 
 
 # Welcome the user 🥰
-println("Welcome to Chorus Simulator")
+println("🍇 Welcome to Chorus Simulator! 🌵")
 sleep(0.25)
 print("Please enter how long you want to run your next simulation for (m): ")
 simTime = getinput()
