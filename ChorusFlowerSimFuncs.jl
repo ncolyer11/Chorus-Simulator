@@ -269,7 +269,7 @@ function finish(chorusFlowerHeatmap::Array{Float64, 4}, chorusPlantHeatmap::Arra
     # Run Python-MatPlotLib alternate version of exporting the heatmaps
     println("Exporting heatmaps (Python MatPlotLib)...")
     try
-        run(`Python ExcelToHeatmap.py`, wait=true)
+        run(`Python ExcelTo2DHeatmaps.py`, wait=true)
         println("Heatmaps externally exported successfully")
     catch error
         println("Error externally exporting heatmaps: $error")
