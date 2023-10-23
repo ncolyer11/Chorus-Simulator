@@ -188,16 +188,22 @@ function finish(chorusFlowerHeatmap::Array{Float64, 4}, chorusPlantHeatmap::Arra
     # Export heatmap data as a set of pngs
     # Currently 'heatmap()' is bugged on Julia so Python and
     # MatPlotLib are currently being used in a separate file for the heatmaps
-    println("Exporting Heatmaps...")
+    println("Exporting heatmaps (Julia Plots)...")
     check1 = exportHeatmap(chorusFlowerHeatmap, "Chorus Flower Heatmap")
     check2 = exportHeatmap(chorusPlantHeatmap, "Chorus Plant Heatmap")
     if check1 && check2 
-        println("Heatmaps exported successfully")
+        println("Heatmaps exported internally successfully")
     else
-        println("Error exporting heatmaps")
+        println("Error internally exporting heatmaps")
     end
     # Run Python-MatPlotLib alternate version of exporting the heatmaps
-    run(`ExcelToHeatmap.py`)
+    println("Exporting heatmaps (Python MatPlotLib)...")
+    try
+        run(`Python ExcelToHeatmap.py`, wait=true)
+        println("Heatmaps exported externally successfully")
+    catch error
+        println("Error externally exporting heatmaps: $error")
+    end
 end
 
 # Write heatmap data to an excel file
