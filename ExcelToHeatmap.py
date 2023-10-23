@@ -8,14 +8,36 @@ names = ["Chorus Plant", "Chorus Flower"]
 for name in names:
     max = 1
     if name == "Chorus Flower":
-        max = 0.5
+        max = 0.45
     excel_file = pd.ExcelFile(name + ' Heatmap.xlsx')
 
-    # Skip first, empty, sheet
+    # Print blank for the first, empty, sheet
     i = 0
     for sheet_name in excel_file.sheet_names:
         if i == 0:
-            i += 1
+            blankData = pd.DataFrame(0.0, index=range(23), columns=range(121))
+            blankData[60][21] = 1 # set initial chorus flower
+            alphaVal = (-20 / 11) * (max - 1) # 1 if chorus flowers, 0 if chorus plant
+                # Initialize the first heatmap with blank data
+            plt.figure(figsize=(25, 7))
+            sns.heatmap(
+                blankData,
+                cmap="rocket_r",
+                annot=False,
+                cbar=True,
+                square=True,
+                xticklabels=range(0, 121, 1),
+                yticklabels=range(22, -1, -1),
+                cbar_kws={'shrink': 0.6},
+                norm=LogNorm(vmin=1e-4, vmax=max),
+                alpha=alphaVal
+            )
+            plt.xlabel('z slices (11 x wide)')
+            plt.ylabel('y layer')
+            plt.title(f'{name}s at minute: 0')
+            plt.savefig(f'media\\MatPlotHeatmaps\\heatmap_{name}0.png', format='png', bbox_inches='tight')
+            plt.close()
+            i = 1
             continue
         data = excel_file.parse(sheet_name)
 
@@ -38,13 +60,11 @@ for name in names:
             cmap="rocket_r",
             annot=False,
             cbar=True,
-            vmin=0,
-            vmax=max,
             square=True,
             xticklabels=range(0, 121, 1),
             yticklabels=range(22, -1, -1),
             cbar_kws={'shrink': 0.6},
-            norm=LogNorm()
+            norm=LogNorm(vmin=1e-4, vmax=max)
         )
         plt.xlabel('z slices (11 x wide)')
         plt.ylabel('y layer')
