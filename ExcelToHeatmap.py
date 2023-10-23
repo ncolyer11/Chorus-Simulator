@@ -46,7 +46,7 @@ for sheet_name in excel_file.sheet_names:
         norm=LogNorm()
     )
     plt.xlabel('z slices (11 x wide)')
-    plt.ylabel('ylabel = "y layer"')
+    plt.ylabel('y layer')
     plt.title(f'{name}s at minute: {sheet_name}')
     plt.savefig(f'media\\MatPlotHeatmaps\\heatmap_{name + sheet_name}.png', format='png', bbox_inches='tight')
     plt.close()
