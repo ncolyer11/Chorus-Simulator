@@ -23,9 +23,9 @@ for name in names:
         if i == 0:
             blankData = pd.DataFrame(0.0, index=range(CHORUS_HEIGHT), columns=range(CHORUS_WIDTH ** 2))
             centreCoord = (CHORUS_WIDTH ** 2 - 1) / 2
-            blankData[centreCoord][CHORUS_HEIGHT - 1] = 1 # set initial chorus flower
+            blankData[centreCoord][CHORUS_HEIGHT - 2] = 1 # set initial chorus flower
                 # Initialize the first heatmap with blank data
-            plt.figure(figsize=(25, 12))
+            plt.figure(figsize=(26, 12))
             xLabels = [str(x) for x in np.tile(np.arange(-CHORUS_RADII, CHORUS_RADII + 1), CHORUS_WIDTH)]
             sns.heatmap(
                 blankData,
@@ -66,7 +66,7 @@ for name in names:
         concatenatedData = pd.concat(zSlices, axis=1)
 
         # Initialise heatmap
-        plt.figure(figsize=(25, 12))
+        plt.figure(figsize=(26, 12))
         xLabels = [str(x) for x in np.tile(np.arange(-CHORUS_RADII, CHORUS_RADII + 1), CHORUS_WIDTH)]
         sns.heatmap(
             concatenatedData,
