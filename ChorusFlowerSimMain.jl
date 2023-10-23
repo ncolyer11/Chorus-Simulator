@@ -15,6 +15,7 @@ Records data using normal arithmetic and variables (may need to use atomics if m
 
 include("ChorusFlowerSimFuncs.jl")
 
+
 # Get user input to determine simulation runtime
 function getinput()
     simTime = 0

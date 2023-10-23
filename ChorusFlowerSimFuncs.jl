@@ -102,23 +102,7 @@ function start(simMaxRunTime::Float64)
     finish(chorusFlowerHeatmap, chorusPlantHeatmap)
 end
 
-# Returns 2 randomly chosen coords for each subchunk a chorus sits in (min 2)
-function randSubChunkPos()
-    return (
-        BlockPos(rand(0:15), rand(0:15), rand(0:15)),
-        BlockPos(rand(0:15), rand(15:31), rand(0:15))
-    )
-end
-
-# Checks to see if random sub-chunk coords are within a chorus plant's bounding box
-function validPos(pos::BlockPos, maxHeight::Int)
-    # If pos has a taxi distance within 5 of the centre and height is low enough return true
-    return abs(pos.x - 5) + abs(pos.z - 5) ≤ 5 && pos.y + 1 ≤ min(maxHeight, WORLD_HEIGHT)
-    #= Old algorithm that checked within the entire rectangular bounding box,
-    Rather than the taxicab cylinder of radii 5:
-    return !(pos.x + 1 > 11 || pos.y + 1 > min(maxHeight, WORLD_HEIGHT) || pos.z + 1 > 11) =#
-end
-
+### SIMULATION WORLD RELATED FUNCTIONS ###
 # Simulates the effects of a single random tick on a chorus flower
 function randomTick(World::Array{Int, 3}, pos::BlockPos)
     # If the block isn't a chorus flower then exit
@@ -147,6 +131,24 @@ function randomTick(World::Array{Int, 3}, pos::BlockPos)
     end
 end
 
+# Returns 2 randomly chosen coords for each subchunk a chorus sits in (min 2)
+function randSubChunkPos()
+    return (
+        BlockPos(rand(0:15), rand(0:15), rand(0:15)),
+        BlockPos(rand(0:15), rand(15:31), rand(0:15))
+    )
+end
+
+# Checks to see if random sub-chunk coords are within a chorus plant's bounding box
+function validPos(pos::BlockPos, maxHeight::Int)
+    # If pos has a taxi distance within 5 of the centre and height is low enough return true
+    return abs(pos.x - 5) + abs(pos.z - 5) ≤ 5 && pos.y + 1 ≤ min(maxHeight, WORLD_HEIGHT)
+    #= Old algorithm that checked within the entire rectangular bounding box,
+    Rather than the taxicab cylinder of radii 5:
+    return !(pos.x + 1 > 11 || pos.y + 1 > min(maxHeight, WORLD_HEIGHT) || pos.z + 1 > 11) =#
+end
+
+### DATA LOGGING RELATED FUNCTIONS ###
 # Updates the 4D chorus plant and flower heatmaps at the given minute interval
 function updateHeatmaps(World::Array{Int, 3}, chorusFlowerHeatmap::Array{Float64, 4}, chorusPlantHeatmap::Array{Float64, 4}, minute::Int, simmedChorus::Int)
     # Optimisation step to track alive flowers and skip to the next chorus if the current one is already dead
@@ -174,38 +176,6 @@ function updateHeatmaps(World::Array{Int, 3}, chorusFlowerHeatmap::Array{Float64
     return aliveFlowers
 end
 
-# Finish the simulation by saving and exporting the data
-function finish(chorusFlowerHeatmap::Array{Float64, 4}, chorusPlantHeatmap::Array{Float64, 4})
-    println("Saving heatmaps...")
-    check1 = saveHeatmap(chorusFlowerHeatmap, "Chorus Flower Heatmap")
-    check2 = saveHeatmap(chorusPlantHeatmap, "Chorus Plant Heatmap")
-    if check1 && check2 
-        println("Heatmaps saved successfully")
-    else
-        println("Error saving heatmaps")
-    end
-    
-    # Export heatmap data as a set of pngs
-    # Currently 'heatmap()' is bugged on Julia so Python and
-    # MatPlotLib are currently being used in a separate file for the heatmaps
-    println("Exporting heatmaps (Julia Plots)...")
-    check1 = exportHeatmap(chorusFlowerHeatmap, "Chorus Flower Heatmap")
-    check2 = exportHeatmap(chorusPlantHeatmap, "Chorus Plant Heatmap")
-    if check1 && check2 
-        println("Heatmaps exported internally successfully")
-    else
-        println("Error internally exporting heatmaps")
-    end
-    # Run Python-MatPlotLib alternate version of exporting the heatmaps
-    println("Exporting heatmaps (Python MatPlotLib)...")
-    try
-        run(`Python ExcelToHeatmap.py`, wait=true)
-        println("Heatmaps exported externally successfully")
-    catch error
-        println("Error externally exporting heatmaps: $error")
-    end
-end
-
 # Write heatmap data to an excel file
 function saveHeatmap(heatmap::Array{Float64, 4}, name::String)
     try
@@ -213,7 +183,7 @@ function saveHeatmap(heatmap::Array{Float64, 4}, name::String)
         XLSX.openxlsx("$(name).xlsx", mode="w") do xf
             for minute in 0:(MAX_SIM_CYCLE_MINUTES)
                 # Create a new sheet for each time interval
-                !XLSX.hassheet(xf, "$minute") && XLSX.addsheet!(xf, "$minute")
+                !XLSX.hassheet(xf, "$(minute + 1)") && XLSX.addsheet!(xf, "$(minute + 1)")
                 sheet = xf[minute + 2]
                 minuteSlice = view(heatmap, :, :, :, minute + 1)
                 for (x,y,z) in Iterators.product(axes(minuteSlice, 1), axes(minuteSlice, 2), axes(minuteSlice, 3))
@@ -274,6 +244,39 @@ function heatmapTo2D(heatmapData::Array{Float64, 4}, minute::Int)
     return flattenedHeatmap
 end
 
+# Finish the simulation by saving and exporting the data
+function finish(chorusFlowerHeatmap::Array{Float64, 4}, chorusPlantHeatmap::Array{Float64, 4})
+    println("Saving heatmaps...")
+    check1 = saveHeatmap(chorusFlowerHeatmap, "Chorus Flower Heatmap")
+    check2 = saveHeatmap(chorusPlantHeatmap, "Chorus Plant Heatmap")
+    if check1 && check2 
+        println("Heatmaps saved successfully")
+    else
+        println("Error saving heatmaps")
+    end
+    
+    # Export heatmap data as a set of pngs
+    # Currently 'heatmap()' is bugged on Julia so Python and
+    # MatPlotLib are being utilised in a separate file instead
+    #=println("Exporting heatmaps (Julia Plots)...")
+    check1 = exportHeatmap(chorusFlowerHeatmap, "Chorus Flower Heatmap")
+    check2 = exportHeatmap(chorusPlantHeatmap, "Chorus Plant Heatmap")
+    if check1 && check2 
+        println("Heatmaps internally exported successfully")
+    else
+        println("Error internally exporting heatmaps")
+    end=#
+    # Run Python-MatPlotLib alternate version of exporting the heatmaps
+    println("Exporting heatmaps (Python MatPlotLib)...")
+    try
+        run(`Python ExcelToHeatmap.py`, wait=true)
+        println("Heatmaps externally exported successfully")
+    catch error
+        println("Error externally exporting heatmaps: $error")
+    end
+end
+
+### CHORUS GROWTH RELATED FUNCTIONS ###
 # Checks to see if the chorus can grow vertically
 function checkVerticalGrowth(World::Array{Int, 3}, pos::BlockPos)
     canGrowAbove::Bool = false
