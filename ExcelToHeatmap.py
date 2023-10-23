@@ -4,20 +4,19 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 
 
-names = ["Chorus Plant", "Chorus Flower"]
+names = ["Chorus Flower", "Chorus Plant"]
 for name in names:
-    max = 1
+    alphaVal = 0
     if name == "Chorus Flower":
-        max = 0.45
+        alphaVal = 1
     excel_file = pd.ExcelFile(name + ' Heatmap.xlsx')
 
     # Print blank for the first, empty, sheet
     i = 0
     for sheet_name in excel_file.sheet_names:
         if i == 0:
-            blankData = pd.DataFrame(0.0, index=range(23), columns=range(121))
-            blankData[60][21] = 1 # set initial chorus flower
-            alphaVal = (-20 / 11) * (max - 1) # 1 if chorus flowers, 0 if chorus plant
+            blankData = pd.DataFrame(0.0, index=range(22), columns=range(121))
+            blankData[60][20] = 1 # set initial chorus flower
                 # Initialize the first heatmap with blank data
             plt.figure(figsize=(25, 7))
             sns.heatmap(
@@ -29,7 +28,7 @@ for name in names:
                 xticklabels=range(0, 121, 1),
                 yticklabels=range(22, -1, -1),
                 cbar_kws={'shrink': 0.6},
-                norm=LogNorm(vmin=1e-4, vmax=max),
+                norm=LogNorm(vmin=1e-4, vmax=1),
                 alpha=alphaVal
             )
             plt.xlabel('z slices (11 x wide)')
@@ -39,11 +38,10 @@ for name in names:
             plt.close()
             i = 1
             continue
-        data = excel_file.parse(sheet_name)
 
         # Determine the number of slices in the z-axis (should always be 11)
+        data = excel_file.parse(sheet_name)
         num_slices = data.shape[1] // 11
-
         z_slices = []
         for z_slice in range(num_slices):
             # Extract the data for the current z-slice
@@ -64,7 +62,7 @@ for name in names:
             xticklabels=range(0, 121, 1),
             yticklabels=range(22, -1, -1),
             cbar_kws={'shrink': 0.6},
-            norm=LogNorm(vmin=1e-4, vmax=max)
+            norm=LogNorm(vmin=1e-4, vmax=1)
         )
         plt.xlabel('z slices (11 x wide)')
         plt.ylabel('y layer')
