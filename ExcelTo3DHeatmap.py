@@ -35,7 +35,7 @@ for name in names:
     ax = fig.add_subplot(111, projection='3d')
     sc = ax.scatter(z_flat, x_flat, CHORUS_HEIGHT - y_flat, c=values, cmap="CMRmap_r", s=100, norm=LogNorm())
     cbar = fig.colorbar(sc, shrink=0.5)
-    ax.set_title('3D {name} Heatmap')
+    ax.set_title(f'3D {name} Heatmap')
     ax.set_xlabel('X-axis')
     ax.set_ylabel('Y-axis')
     ax.set_zlabel('Z-axis')

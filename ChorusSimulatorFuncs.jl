@@ -31,6 +31,20 @@ const WORLD_HEIGHT::Int = 23
 const MAX_SIM_CYCLE_MINUTES::Int = 30
 
 
+# Get user input to determine simulation runtime
+function getinput()
+    simTime = 0
+    while true
+        try
+            simTime = parse(Float64, readline())
+            break
+        catch
+            println("Invalid input, please enter a number")
+        end
+    end
+    return simTime
+end
+
 # Starts the simulation and runs it for 'simMaxRunTime' minutes
 function start(simMaxRunTime::Float64)
     randomTicks::Int64 = 0
@@ -64,10 +78,13 @@ function start(simMaxRunTime::Float64)
             # Simulate 3 randomticks per subchunk
             for i in 1:3
                 subChunkLowerPos, subChunkUpperPos = randSubChunkPos()
-                if validPos(subChunkLowerPos, 15)
+                # If the block isn't a chorus flower then exit
+                lowerId = getBlockId(World, subChunkLowerPos)
+                upperId = getBlockId(World, subChunkUpperPos)
+                if validPos(subChunkLowerPos, 15) && lowerId ≤ CHORUS_FLOWER_AGE_4
                     randomTick(World, subChunkLowerPos)
                 end
-                if validPos(subChunkUpperPos, 31)
+                if validPos(subChunkUpperPos, 31) && upperId ≤ CHORUS_FLOWER_AGE_4
                     randomTick(World, subChunkUpperPos)
                 end
             end
@@ -108,12 +125,7 @@ end
 ### SIMULATION WORLD RELATED FUNCTIONS ###
 # Simulates the effects of a single random tick on a chorus flower
 function randomTick(World::Array{Int, 3}, pos::BlockPos)
-    # If the block isn't a chorus flower then exit
-    blockId::Int = getBlockId(World, pos)
-    if !(blockId in CHORUS_FLOWERS)
-        return
-    end
-    age = getAge(blockId)
+    age = getAge(getBlockId(World, pos))
     aboveBlock = blockUp(pos)
     # If the above block isn't within height limit or isn't air or age is ≥ 5 exit
     if aboveBlock.y + 1 > WORLD_HEIGHT || getBlockId(World, aboveBlock) ≠ AIR || age ≥ MAX_AGE

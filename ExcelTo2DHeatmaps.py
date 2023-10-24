@@ -37,7 +37,7 @@ for name in names:
                 xticklabels=xLabels,
                 yticklabels=yTickLabels,
                 cbar_kws={'shrink': 0.6},
-                norm=LogNorm(vmin=1e-4, vmax=1),
+                norm=LogNorm(vmin=1e-7, vmax=1),
             )
             heatmap.get_children()[0].set_alpha(alphaVal)
             # Add lines to separate slices and labels for z-slices
@@ -83,7 +83,7 @@ for name in names:
             xticklabels=xLabels,
             yticklabels=yTickLabels,
             cbar_kws={'shrink': 0.6},
-            norm=LogNorm(vmin=1e-4, vmax=1)
+            norm=LogNorm(vmin=1e-7, vmax=1)
         )
         # Add lines to separate slices and labels for z-slices
         for i in range(1, CHORUS_WIDTH + 1):
@@ -93,7 +93,7 @@ for name in names:
             plt.text(i * CHORUS_WIDTH - (CHORUS_RADII + 0.5), 26, zLabel, ha='center')
         plt.xlabel(f'X Offset')
         plt.ylabel('Y layer')
-        plt.title(f'{name}s @ minute: {sheetName}')
+        plt.title(f'{name}s @ Minute: {sheetName}')
         plt.savefig(f'media\\MatPlotHeatmaps\\{name} Heatmap at Minute {sheetName}.png', format='png', bbox_inches='tight')
         plt.close()
     excelFile.close()

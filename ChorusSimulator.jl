@@ -15,22 +15,6 @@ Records data using normal arithmetic and variables (may need to use atomics if m
 
 include("ChorusSimulatorFuncs.jl")
 
-
-# Get user input to determine simulation runtime
-function getinput()
-    simTime = 0
-    while true
-        try
-            simTime = parse(Float64, readline())
-            break
-        catch
-            println("Invalid input, please enter a number")
-        end
-    end
-    return simTime
-end
-
-
 # Welcome the user 🥰
 println("🍇 Welcome to Chorus Simulator! 🌵")
 sleep(0.25)
