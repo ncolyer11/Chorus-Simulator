@@ -272,21 +272,21 @@ function optimiseOctants(heatmap::Array{Float64, 4})
         height::Int = size(heatmap, 2)
         width::Int = size(heatmap, 1)
         radii::Int = (width + 1) / 2
-        for (x,y,z) in Iterators.product(1:radii, 1:radii, 1:height)
+        for (x, z, y) in Iterators.product(1:radii, 1:radii, 1:height)
             gridX = x - radii
-            gridY = y - radii
+            gridZ = z - radii
             # Skip centred block as no values to average with
-            if gridX == 0 && gridY == 0
+            if gridX == 0 && gridZ == 0
                 continue
             # Otherwise average across octants
             else
-                octants = [(x, y) for x in [gridX, -gridX] for y in [gridY, -gridY]]
-                values = [heatmap[x + radii, z, y + radii, minute] for (x, y) in octants]
+                octants = [(x, z) for x in [gridX, -gridX] for z in [gridZ, -gridZ]]
+                values = [heatmap[x + radii, y, z + radii, minute] for (x, z) in octants]
                 avgValue = mean(values)
-                for (x, y) in octants
-                    coords = [(-x, y), (x, -y), (-x, -y), (y, x), (-y, x), (y, -x), (-y, -x)]
-                    for (dx, dy) in coords
-                        heatmap[dx + radii, z, dy + radii, minute] = avgValue
+                for (x, z) in octants
+                    coords = [(-x, z), (x, -z), (-x, -z), (z, x), (-z, x), (z, -x), (-z, -x)]
+                    for (dx, dz) in coords
+                        heatmap[dx + radii, y, dz + radii, minute] = avgValue
                     end
                 end
             end # there's a birds nest in here somewhere
