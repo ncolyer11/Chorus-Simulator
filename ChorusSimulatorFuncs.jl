@@ -113,11 +113,14 @@ function start(simMaxRunTime::Float64)
     elapsedTime == 1 ? minuteWord = "minute" : minuteWord = "minutes"
     println("\nMaximum runtime reached after $(elapsedTime/60e9) $minuteWord. Exiting the simulation.")
     sleep(0.5)
-    
+
+    # as optimiseOctants effectively simulates an additional 6.33x more chorus
+    simmedChorus *= (19 / 3)
+    randomTicks *= (19 / 3)
     # Output some general simulation statistics
     simmedChorus == 1 ? flowerWord = "flower" : flowerWord = "flowers"
     println("Simulated $simmedChorus chorus $flowerWord over $randomTicks randomticks ($(round(randomTicks/432e3)) hours)")
-    println("Average chorus flower took $avgTimeIntervalsForGrowth minutes to fully grow")
+    println("Average chorus flower took $avgTimeIntervalsForGrowth minutes to fully grow\n")
 
     # Save heatmap data to an excel file
     finish(chorusFlowerHeatmap, chorusPlantHeatmap)
@@ -262,8 +265,9 @@ end
 
 # Take advantage of the 45 deg symmetry property
 # of a chorus by averaging across its 8 quadrants
-# Speeds up simulation time by effectively 6.33...x
+# Speeds up simulation time by effectively 6.33x
 function optimiseOctants(heatmap::Array{Float64, 4})
+    startTime = time_ns()
     for minute in 1:(MAX_SIM_CYCLE_MINUTES + 1)
         height::Int = size(heatmap, 2)
         width::Int = size(heatmap, 1)
@@ -288,14 +292,15 @@ function optimiseOctants(heatmap::Array{Float64, 4})
             end # there's a birds nest in here somewhere
         end 
     end # i can feel it
+    return 1e-9 * (time_ns() - startTime)
 end
 
 # Finish the simulation by saving and exporting the data
 function finish(chorusFlowerHeatmap::Array{Float64, 4}, chorusPlantHeatmap::Array{Float64, 4})
     println("Optimising heatmaps...")
-    optimiseOctants(chorusFlowerHeatmap)
-    optimiseOctants(chorusPlantHeatmap)
-    println("Heatmaps optimised")
+    timeToOptimise = optimiseOctants(chorusFlowerHeatmap)
+    timeToOptimise += optimiseOctants(chorusPlantHeatmap)
+    println("Heatmaps optimised in $timeToOptimise seconds")
 
     println("Saving heatmaps...")
     check1 = saveHeatmap(chorusFlowerHeatmap, "Chorus Flower Heatmap")

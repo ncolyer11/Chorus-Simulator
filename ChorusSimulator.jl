@@ -16,7 +16,7 @@ Records data using normal arithmetic and variables (may need to use atomics if m
 include("ChorusSimulatorFuncs.jl")
 
 # Welcome the user 🥰
-println("🍇 Welcome to Chorus Simulator!🌵")
+println("\n🍇 Welcome to Chorus Simulator!🌵")
 sleep(0.25)
 print("Please enter how long you want to run your next simulation for (m): ")
 simTime = getinput()
@@ -28,4 +28,4 @@ start(simTime)
 sleep(0.25)
 
 # Farwell the user 👋
-println("Thanks for using Chorus Simulator, have a nice day 👋")
+println("\nThanks for using Chorus Simulator, have a nice day 👋")
