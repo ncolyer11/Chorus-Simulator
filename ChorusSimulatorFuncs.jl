@@ -66,7 +66,7 @@ function start(simMaxRunTime::Float64)
             lastMinute = currentMinute
             remainingTime = simMaxRunTime - currentMinute
             remainingTime == 1 ? minuteWord = "minute" : minuteWord = "minutes"
-            println(" - Simulated $(simmedChorus * (19 / 3)) chorus so far with $remainingTime $minuteWord remaining")
+            println(" - Simulated $(round(simmedChorus * (19 / 3))) chorus so far with $remainingTime $minuteWord remaining")
         end
         # Initialise world state to all air
         World = fill(AIR, (CHORUS_WIDTH, WORLD_HEIGHT, CHORUS_WIDTH))
