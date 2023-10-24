@@ -1,6 +1,7 @@
 using Dates
-using XLSX
 using Plots
+using Statistics
+using XLSX
 
 # Custom data type for recording block position
 mutable struct BlockPos
@@ -259,8 +260,43 @@ function heatmapTo2D(heatmapData::Array{Float64, 4}, minute::Int)
     return flattenedHeatmap
 end
 
+# Take advantage of the 45 deg symmetry property
+# of a chorus by averaging across its 8 quadrants
+# Speeds up simulation time by effectively 6.33...x
+function optimiseOctants(heatmap::Array{Float64, 4})
+    for minute in 1:(MAX_SIM_CYCLE_MINUTES + 1)
+        height::Int = size(heatmap, 2)
+        width::Int = size(heatmap, 1)
+        radii::Int = (width + 1) / 2
+        for (x,y,z) in Iterators.product(1:radii, 1:radii, 1:height)
+            gridX = x - radii
+            gridY = y - radii
+            # Skip centred block as no values to average with
+            if gridX == 0 && gridY == 0
+                continue
+            # Otherwise average across octants
+            else
+                octants = [(x, y) for x in [gridX, -gridX] for y in [gridY, -gridY]]
+                values = [heatmap[x + radii, z, y + radii, minute] for (x, y) in octants]
+                avgValue = mean(values)
+                for (x, y) in octants
+                    coords = [(-x, y), (x, -y), (-x, -y), (y, x), (-y, x), (y, -x), (-y, -x)]
+                    for (dx, dy) in coords
+                        heatmap[dx + radii, z, dy + radii, minute] = avgValue
+                    end
+                end
+            end # there's a birds nest in here somewhere
+        end 
+    end # i can feel it
+end
+
 # Finish the simulation by saving and exporting the data
 function finish(chorusFlowerHeatmap::Array{Float64, 4}, chorusPlantHeatmap::Array{Float64, 4})
+    println("Optimising heatmaps...")
+    optimiseOctants(chorusFlowerHeatmap)
+    optimiseOctants(chorusPlantHeatmap)
+    println("Heatmaps optimised")
+
     println("Saving heatmaps...")
     check1 = saveHeatmap(chorusFlowerHeatmap, "Chorus Flower Heatmap")
     check2 = saveHeatmap(chorusPlantHeatmap, "Chorus Plant Heatmap")
