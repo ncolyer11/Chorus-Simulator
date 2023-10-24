@@ -195,6 +195,38 @@ function updateHeatmaps(World::Array{Int, 3}, chorusFlowerHeatmap::Array{Float64
     return aliveFlowers
 end
 
+# Take advantage of the 45 deg symmetry property
+# of a chorus by averaging across its 8 quadrants
+# Speeds up simulation time by effectively 6.33x
+function optimiseOctants(heatmap::Array{Float64, 4})
+    startTime = time_ns()
+    for minute in 1:(MAX_SIM_CYCLE_MINUTES + 1)
+        height::Int = size(heatmap, 2)
+        width::Int = size(heatmap, 1)
+        radii::Int = (width + 1) / 2
+        for (x, z, y) in Iterators.product(1:radii, 1:radii, 1:height)
+            gridX = x - radii
+            gridZ = z - radii
+            # Skip centred block as no values to average with
+            if gridX == 0 && gridZ == 0
+                continue
+            # Otherwise average across octants
+            else
+                octants = [(x, z) for x in [gridX, -gridX] for z in [gridZ, -gridZ]]
+                values = [heatmap[x + radii, y, z + radii, minute] for (x, z) in octants]
+                avgValue = mean(values)
+                for (x, z) in octants
+                    coords = [(-x, z), (x, -z), (-x, -z), (z, x), (-z, x), (z, -x), (-z, -x)]
+                    for (dx, dz) in coords
+                        heatmap[dx + radii, y, dz + radii, minute] = avgValue
+                    end
+                end
+            end # there's a birds nest in here somewhere
+        end 
+    end # i can feel it
+    return 1e-9 * (time_ns() - startTime)
+end
+
 # Write heatmap data to an excel file
 function saveHeatmap(heatmap::Array{Float64, 4}, name::String)
     try
@@ -261,38 +293,6 @@ function heatmapTo2D(heatmapData::Array{Float64, 4}, minute::Int)
         flattenedHeatmap[col, row] = heatmapSlice[x, y, z]
     end
     return flattenedHeatmap
-end
-
-# Take advantage of the 45 deg symmetry property
-# of a chorus by averaging across its 8 quadrants
-# Speeds up simulation time by effectively 6.33x
-function optimiseOctants(heatmap::Array{Float64, 4})
-    startTime = time_ns()
-    for minute in 1:(MAX_SIM_CYCLE_MINUTES + 1)
-        height::Int = size(heatmap, 2)
-        width::Int = size(heatmap, 1)
-        radii::Int = (width + 1) / 2
-        for (x, z, y) in Iterators.product(1:radii, 1:radii, 1:height)
-            gridX = x - radii
-            gridZ = z - radii
-            # Skip centred block as no values to average with
-            if gridX == 0 && gridZ == 0
-                continue
-            # Otherwise average across octants
-            else
-                octants = [(x, z) for x in [gridX, -gridX] for z in [gridZ, -gridZ]]
-                values = [heatmap[x + radii, y, z + radii, minute] for (x, z) in octants]
-                avgValue = mean(values)
-                for (x, z) in octants
-                    coords = [(-x, z), (x, -z), (-x, -z), (z, x), (-z, x), (z, -x), (-z, -x)]
-                    for (dx, dz) in coords
-                        heatmap[dx + radii, y, dz + radii, minute] = avgValue
-                    end
-                end
-            end # there's a birds nest in here somewhere
-        end 
-    end # i can feel it
-    return 1e-9 * (time_ns() - startTime)
 end
 
 # Finish the simulation by saving and exporting the data
