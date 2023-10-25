@@ -48,14 +48,41 @@ end
 
 # Starts the simulation and runs it for 'simMaxRunTime' minutes
 function start(simMaxRunTime::Float64)
+    # Initialise data logging variables
     randomTicks::Int64 = 0
+    simmedChorus::Int64 = 0
+    avgGrowthTime::Float64 = 0.0
+    lastMinute::Int = 0
     chorusFlowerHeatmap = fill(Float64(0), (CHORUS_WIDTH, WORLD_HEIGHT, CHORUS_WIDTH, MAX_SIM_CYCLE_MINUTES + 1))
     chorusPlantHeatmap = fill(Float64(0), (CHORUS_WIDTH, WORLD_HEIGHT, CHORUS_WIDTH, MAX_SIM_CYCLE_MINUTES + 1))
-    simmedChorus = 0
-    avgTimeIntervalsForGrowth = 0.0
+    # Start the simulation cycle
+    randomTicks, simmedChorus, avgGrowthTime, elapsedTime = worldLoop(simMaxRunTime, chorusFlowerHeatmap, 
+        chorusPlantHeatmap, randomTicks, simmedChorus, avgGrowthTime, lastMinute)
+    
+    # Display runtime
+    elapsedTime == 1 ? minuteWord = "minute" : minuteWord = "minutes"
+    println("\nMaximum runtime reached after $(elapsedTime/60e9) $minuteWord. Exiting the simulation.")
+    sleep(0.5)
+
+    # As optimiseOctants effectively simulates an additional 6.33x more chorus
+    simmedChorus *= round((19 / 3))
+    randomTicks *= round((19 / 3))
+    # Output some general simulation statistics
+    simmedChorus == 1 ? flowerWord = "flower" : flowerWord = "flowers"
+    println("Simulated $simmedChorus chorus $flowerWord over $randomTicks randomticks ($(round(randomTicks/432e3)) hours)")
+    println("Average chorus flower took $avgGrowthTime minutes to fully grow\n")
+
+    # Save heatmap data to an excel file
+    finish(chorusFlowerHeatmap, chorusPlantHeatmap)
+end
+
+### SIMULATION WORLD RELATED FUNCTIONS ###
+# Simulates 2 subchunks of a minecraft world at 6 random ticks per cycle
+function worldLoop(simMaxRunTime::Float64, chorusFlowerHeatmap::Array{Float64, 4},
+    chorusPlantHeatmap::Array{Float64, 4}, randomTicks::Int64, simmedChorus::Int64, 
+    avgGrowthTime::Float64, lastMinute::Int)
     startTime = time_ns()
-    elapsedTime = time_ns() - startTime
-    lastMinute::Int64 = 0
+    elapsedTime = 0
     while true
         # Check if the elapsed time exceeds the maximum runtime
         elapsedTime = time_ns() - startTime
@@ -98,35 +125,19 @@ function start(simMaxRunTime::Float64)
         end
         simmedChorus += 1
         # Track average growth time
-        if avgTimeIntervalsForGrowth == 0
-            avgTimeIntervalsForGrowth = timeInterval
+        if avgGrowthTime == 0
+            avgGrowthTime = timeInterval
         else
-            avgTimeIntervalsForGrowth = (simmedChorus * avgTimeIntervalsForGrowth + timeInterval) / (simmedChorus + 1)
+            avgGrowthTime = (simmedChorus * avgGrowthTime + timeInterval) / (simmedChorus + 1)
         end
         # Quick-sim remaining time intervals (system has reached stability now that all chorus flowers are dead)
         for remainingTimeIntervals in (timeInterval + 1):MAX_SIM_CYCLE_MINUTES
             updateHeatmaps(World, chorusFlowerHeatmap, chorusPlantHeatmap, remainingTimeIntervals, simmedChorus)
         end
     end
-    
-    # Display runtime
-    elapsedTime == 1 ? minuteWord = "minute" : minuteWord = "minutes"
-    println("\nMaximum runtime reached after $(elapsedTime/60e9) $minuteWord. Exiting the simulation.")
-    sleep(0.5)
-
-    # As optimiseOctants effectively simulates an additional 6.33x more chorus
-    simmedChorus *= round((19 / 3))
-    randomTicks *= round((19 / 3))
-    # Output some general simulation statistics
-    simmedChorus == 1 ? flowerWord = "flower" : flowerWord = "flowers"
-    println("Simulated $simmedChorus chorus $flowerWord over $randomTicks randomticks ($(round(randomTicks/432e3)) hours)")
-    println("Average chorus flower took $avgTimeIntervalsForGrowth minutes to fully grow\n")
-
-    # Save heatmap data to an excel file
-    finish(chorusFlowerHeatmap, chorusPlantHeatmap)
+    return randomTicks, simmedChorus, avgGrowthTime, elapsedTime
 end
 
-### SIMULATION WORLD RELATED FUNCTIONS ###
 # Simulates the effects of a single random tick on a chorus flower
 function randomTick(World::Array{Int, 3}, pos::BlockPos)
     age = getAge(getBlockId(World, pos))
