@@ -26,15 +26,15 @@ include("ChorusSimulatorFuncs.jl")
 
 # A flag to indicate when the simulation should prematurely save its data and stop
 stopSimulation = false
-sufficientThreads = true
+sufficientThreads = false # true
 
 # Check user has sufficient threads
-if Threads.nthreads() < 2
-    println("\n⚠ Warning: Program started with less than 2 threads, safe early exit will be disabled ⚠")
-    println("\nRun ▶ `julia --threads 2` to start Julia with 2 threads")
-    global sufficientThreads = false
-    sleep(3)
-end
+# if Threads.nthreads() < 2
+#     println("\n⚠ Warning: Program started with less than 2 threads, safe early exit will be disabled ⚠")
+#     println("\nRun ▶ `julia --threads 2` to start Julia with 2 threads")
+#     global sufficientThreads = false
+#     sleep(3)
+# end
 
 # Welcome the user 🥰
 println("\n🍇 Welcome to Chorus Simulator!🌵")
