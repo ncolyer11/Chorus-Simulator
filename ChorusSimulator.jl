@@ -1,4 +1,4 @@
-#=
+"""
 Written by ncolyer
 A program that simulates and charts chorus flower growth
 It records:
@@ -11,13 +11,24 @@ block is where
 It then simulates random ticks using a random call for each x, y, and z value
 Replicates chorus flower growth code from deobfuscated java game code
 Records data using normal arithmetic and variables (may need to use atomics if multi-threading)
-=#
+
+NOTE: MAKE SURE YOU'RE RUNNING THIS WITH AT LEAST 2 THREADS!
+"""
 
 include("ChorusSimulatorFuncs.jl")
 
 
 # A flag to indicate when the simulation should prematurely save its data and stop
 stopSimulation = false
+sufficientThreads = true
+
+# Check user has sufficient threads
+if Threads.nthreads() < 2
+    println("\n⚠ Warning: Program started with less than 2 threads, safe early exit will be disabled ⚠")
+    println("\nRun ▶ `julia --threads 2` to start Julia with 2 threads")
+    global sufficientThreads = false
+    sleep(3)
+end
 
 # Welcome the user 🥰
 println("\n🍇 Welcome to Chorus Simulator!🌵")
@@ -28,19 +39,23 @@ simTime = getinput()
 # Start the simulation
 simTime == 1 ? minuteWord = "minute" : minuteWord = "minutes"
 println("Running a simulation for $simTime $minuteWord... hold tight!")
-simulationThread = Threads.@spawn start(simTime) # start the simulation in a separate thread
 
 # Read input in case of an early exit request
-sleep(0.5)
-while !stopSimulation
-    println("\n🔴 To safely end the simulation at any time, type 'exit'🔴")
-    earlyExitInput = readline()
-    if lowercase(earlyExitInput) == "exit"
-        println("Stopping simulation...")
-        global stopSimulation = true
-        Threads.wait(simulationThread) # wait for the simulation thread to safely finish
-        break
+if sufficientThreads
+    simulationThread = Threads.@spawn start(simTime) # start the simulation in a separate thread
+    sleep(0.5)
+    while !stopSimulation
+        println("\n🔴 To safely end the simulation at any time, type 'exit'🔴")
+        earlyExitInput = readline()
+        if lowercase(earlyExitInput) == "exit"
+            println("Stopping simulation...")
+            global stopSimulation = true
+            Threads.wait(simulationThread) # wait for the simulation thread to safely finish
+            break
+        end
     end
+else
+    start(simTime)
 end
 
 # Farwell the user 👋
