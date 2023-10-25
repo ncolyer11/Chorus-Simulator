@@ -114,9 +114,9 @@ function start(simMaxRunTime::Float64)
     println("\nMaximum runtime reached after $(elapsedTime/60e9) $minuteWord. Exiting the simulation.")
     sleep(0.5)
 
-    # as optimiseOctants effectively simulates an additional 6.33x more chorus
-    simmedChorus *= (19 / 3)
-    randomTicks *= (19 / 3)
+    # As optimiseOctants effectively simulates an additional 6.33x more chorus
+    simmedChorus *= round((19 / 3))
+    randomTicks *= round((19 / 3))
     # Output some general simulation statistics
     simmedChorus == 1 ? flowerWord = "flower" : flowerWord = "flowers"
     println("Simulated $simmedChorus chorus $flowerWord over $randomTicks randomticks ($(round(randomTicks/432e3)) hours)")
@@ -212,18 +212,15 @@ function optimiseOctants(heatmap::Array{Float64, 4})
                 continue
             # Otherwise average across octants
             else
-                octants = [(x, z) for x in [gridX, -gridX] for z in [gridZ, -gridZ]]
-                values = [heatmap[x + radii, y, z + radii, minute] for (x, z) in octants]
-                avgValue = mean(values)
+                octants = vcat([(x, z) for x in [gridX, -gridX] for z in [gridZ, -gridZ]], 
+                               [(z, x) for x in [gridX, -gridX] for z in [gridZ, -gridZ]])
+                avgValue = mean([heatmap[x + radii, y, z + radii, minute] for (x, z) in octants])
                 for (x, z) in octants
-                    coords = [(-x, z), (x, -z), (-x, -z), (z, x), (-z, x), (z, -x), (-z, -x)]
-                    for (dx, dz) in coords
-                        heatmap[dx + radii, y, dz + radii, minute] = avgValue
-                    end
+                    heatmap[x + radii, y, z + radii, minute] = avgValue
                 end
-            end # there's a birds nest in here somewhere
+            end
         end 
-    end # i can feel it
+    end
     return 1e-9 * (time_ns() - startTime)
 end
 
