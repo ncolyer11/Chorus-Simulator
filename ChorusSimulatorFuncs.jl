@@ -65,8 +65,8 @@ function start(simMaxRunTime::Float64)
     sleep(0.5)
 
     # As optimiseOctants effectively simulates an additional 6.33x more chorus
-    simmedChorus *= round((19 / 3))
-    randomTicks *= round((19 / 3))
+    simmedChorus = round(simmedChorus * (19 / 3))
+    randomTicks = round(randomTicks * (19 / 3))
     # Output some general simulation statistics
     simmedChorus == 1 ? flowerWord = "flower" : flowerWord = "flowers"
     println("Simulated $simmedChorus chorus $flowerWord over $randomTicks randomticks ($(round(randomTicks/432e3)) hours)")

@@ -15,6 +15,12 @@ Records data using normal arithmetic and variables (may need to use atomics if m
 NOTE: MAKE SURE YOU'RE RUNNING THIS WITH AT LEAST 2 THREADS!
 """
 
+"""
+KNOWN ISSUES:
+- Multi-threading is temperamental (when is it ever)
+- Chorus flower sim on layer 22 doesn't wanna work for some reaso
+""" 
+
 include("ChorusSimulatorFuncs.jl")
 
 
