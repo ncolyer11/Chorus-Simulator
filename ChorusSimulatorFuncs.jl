@@ -61,7 +61,7 @@ function start(simMaxRunTime::Float64)
     
     # Display runtime
     elapsedTime == 1 ? minuteWord = "minute" : minuteWord = "minutes"
-    println("\nMaximum runtime reached after $(elapsedTime/60e9) $minuteWord. Exiting the simulation.")
+    println("\nSimulation finished after $(elapsedTime/60e9) $minuteWord. Exiting...")
     sleep(0.5)
 
     # As optimiseOctants effectively simulates an additional 6.33x more chorus
@@ -83,11 +83,12 @@ function worldLoop(simMaxRunTime::Float64, chorusFlowerHeatmap::Array{Float64, 4
     avgGrowthTime::Float64, lastMinute::Int)
     startTime = time_ns()
     elapsedTime = 0
-    while true
+    # Safely exit early on request
+    while !stopSimulation
         # Check if the elapsed time exceeds the maximum runtime
         elapsedTime = time_ns() - startTime
-        currentMinute = floor(elapsedTime / 60e9)
-        if elapsedTime > simMaxRunTime * 60e9 # converting m to ns
+        currentMinute = floor(elapsedTime / 60e9) # converting ns to m
+        if elapsedTime > simMaxRunTime * 60e9
             break
         elseif currentMinute != lastMinute
             lastMinute = currentMinute
